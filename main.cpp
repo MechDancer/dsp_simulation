@@ -17,9 +17,11 @@ int main() {
     auto _mean = mean(t0.values);
     std::transform(t0.values.begin(), t0.values.end(), f.values.begin(),
                    [=](float x) { return std::complex<float>{x - _mean, 0}; });
-    SAVE_SIGNAL_TF("../data/t0.txt", f, x.real());
-    fft<>(f.values);
+    
+    fft(f.values);
     SAVE_SIGNAL_TF("../data/f.txt", f, std::abs(x));
+    ifft(f.values);
+    SAVE_SIGNAL_TF("../data/t0.txt", f, x.real());
     
     return 0;
 }

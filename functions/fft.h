@@ -58,6 +58,12 @@ namespace mechdancer {
             }
         }
     }
+    
+    template<Number t = float>
+    void ifft(std::vector<std::complex<t>> &memory) {
+        fft<fft_operation::ifft>(memory);
+        for (auto n = memory.size(); auto &p : memory) p /= n;
+    }
 }
 
 #endif //DSP_SIMULATION_FFT_H
