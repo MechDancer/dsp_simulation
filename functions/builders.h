@@ -24,7 +24,7 @@ namespace mechdancer {
     auto sample(size_t size, origin_t origin, frequency_t fs, time_t t0 = time_t::zero) {
         using namespace std::chrono;
         
-        signal_t<signal_domain::time, value_t, frequency_t, time_t> result{
+        signal_t<value_t, frequency_t, time_t> result{
             .values = std::vector<value_t>(size),
             .sampling_frequency = fs,
             .begin_time = t0,
@@ -41,7 +41,7 @@ namespace mechdancer {
         return result;
     }
     
-    /// 从文件加载（时域）信号
+    /// 从文件加载时域信号
     /// \tparam value_t 数据类型
     /// \tparam frequency_t 频率类型
     /// \tparam time_t 时间类型
@@ -51,7 +51,7 @@ namespace mechdancer {
     /// \return 离散信号
     template<class value_t = float, Frequency frequency_t, Time time_t>
     auto load(std::string const &file_name, frequency_t fs, time_t t0 = time_t::zero) {
-        signal_t<signal_domain::time, value_t, frequency_t, time_t> result{
+        signal_t<value_t, frequency_t, time_t> result{
             .sampling_frequency = fs,
             .begin_time = t0,
         };

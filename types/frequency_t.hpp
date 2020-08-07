@@ -8,6 +8,9 @@
 #include <ratio>
 
 namespace mechdancer {
+    /// 频率类型
+    /// \tparam _value_t 内部字段类型
+    /// \tparam _ratio 单位相对于赫兹的比例
     template<class _value_t, class _ratio = std::ratio<1>>
     struct frequency_t {
         using value_t = _value_t;
