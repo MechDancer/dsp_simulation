@@ -26,7 +26,7 @@ namespace mechdancer {
     };
     
     template<class _value_t = float, Frequency frequency_t, Time time_t>
-    auto time_signal_of(size_t size, frequency_t frequency, time_t time) {
+    auto real_signal_of(size_t size, frequency_t frequency, time_t time) {
         return signal_t<_value_t, frequency_t, time_t>{
             .values = std::vector<_value_t>(size),
             .sampling_frequency = frequency,
@@ -35,12 +35,8 @@ namespace mechdancer {
     }
     
     template<class _value_t = float, Frequency frequency_t, Time time_t>
-    auto frequency_signal_of(size_t size, frequency_t frequency, time_t time) {
-        return signal_t<std::complex<_value_t>, frequency_t, time_t>{
-            .values = std::vector<std::complex<_value_t>>(size),
-            .sampling_frequency = frequency,
-            .begin_time = time,
-        };
+    auto complex_signal_of(size_t size, frequency_t frequency, time_t time) {
+        return real_signal_of<std::complex<_value_t>>(size, frequency, time);
     }
 }
 

@@ -13,28 +13,47 @@
 namespace mechdancer {
     constexpr static auto PI = 3.1415926535897932384626433832795;
     
+    /// 用于正变换的 Ω_n^k
+    /// \tparam t 复数值数据类型
+    /// \param k k
+    /// \param n n
+    /// \return Ω_n^k
     template<Number t = float>
-    std::complex<t> omega(unsigned k, unsigned n) {
+    static std::complex<t> omega(unsigned k, unsigned n) {
         double theta = 2 * PI * k / n;
         return {static_cast<t>(std::cos(theta)),
                 static_cast<t>(std::sin(theta))};
     }
     
+    /// 用于反变换的 Ω_n^k
+    /// \tparam t 复数值数据类型
+    /// \param k k
+    /// \param n n
+    /// \return Ω_n^k
     template<Number t = float>
-    std::complex<t> i_omega(unsigned k, unsigned n) {
+    static std::complex<t> i_omega(unsigned k, unsigned n) {
         double theta = 2 * PI * k / n;
         return {static_cast<t>(std::cos(theta)),
                 -static_cast<t>(std::sin(theta))};
     }
     
+    /// fft 操作
     enum class fft_operation { fft, ifft };
     
+    /// 基 2 快速傅里叶变换
+    /// \tparam operation fft 操作
+    /// \tparam t 复数数据类型
+    /// \param memory 信号数据空间
     template<fft_operation operation = fft_operation::fft, Number t = float>
     void fft(std::vector<std::complex<t>> &memory) {
         constexpr static auto ω = operation == fft_operation::fft ? omega<t> : i_omega<t>;
-        
-        const size_t n = memory.size();
-        
+        // 扩大尺寸到 2 的幂
+        size_t n = memory.size();
+        if (((n - 1) & n)) {
+            n = 2;
+            while (n < memory.size()) n <<= 1u;
+            memory.resize(n, std::complex<t>{});
+        }
         // 错序
         for (size_t i = 0, j = 0; i < n; ++i) {
             if (i > j) std::swap(memory[i], memory[j]);

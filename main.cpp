@@ -12,7 +12,7 @@ using namespace std::chrono_literals;
 
 int main() {
     auto t0 = load("C:\\Users\\ydrml\\Desktop\\Êý¾Ý\\2048_1M.txt", 1_MHz, 0s);
-    auto f  = frequency_signal_of(2048, 1_MHz, 0s);
+    auto f  = complex_signal_of(3000, 1_MHz, 0s);
     
     auto _mean = mean(t0.values);
     std::transform(t0.values.begin(), t0.values.end(), f.values.begin(),
