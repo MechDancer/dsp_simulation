@@ -2,8 +2,8 @@
 // Created by ydrml on 2020/8/6.
 //
 
-#ifndef DSP_SIMULATION_BUILD_SIGNAL_H
-#define DSP_SIMULATION_BUILD_SIGNAL_H
+#ifndef DSP_SIMULATION_BUILDERS_H
+#define DSP_SIMULATION_BUILDERS_H
 
 #include <string>
 #include <fstream>
@@ -84,4 +84,4 @@ namespace mechdancer {
     save(PATH, S, [](std::ofstream &file, typename decltype(S)::value_t x) { file << TF; })
 }
 
-#endif // DSP_SIMULATION_BUILD_SIGNAL_H
+#endif // DSP_SIMULATION_BUILDERS_H

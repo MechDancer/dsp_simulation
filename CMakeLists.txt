@@ -7,4 +7,4 @@ add_executable(dsp_simulation main.cpp
         types/concepts.h
         types/frequency_t.hpp
         types/signal_t.hpp
-        functions/build_signal.h functions/fft.h)
+        functions/builders.h functions/fft.h functions/fft.h functions/processing.h)
