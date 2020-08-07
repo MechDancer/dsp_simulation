@@ -20,7 +20,7 @@ namespace mechdancer {
     /// \param fs 采样频率
     /// \param t0 起始时间
     /// \return 离散信号
-    template<Number value_t = float, Frequency frequency_t, Time time_t, class origin_t>
+    template<class value_t = float, Frequency frequency_t, Time time_t, class origin_t>
     auto sample(size_t size, origin_t origin, frequency_t fs, time_t t0 = time_t::zero) {
         using namespace std::chrono;
         
@@ -49,7 +49,7 @@ namespace mechdancer {
     /// \param fs 采样频率
     /// \param t0 起始时间
     /// \return 离散信号
-    template<Number value_t = float, Frequency frequency_t, Time time_t>
+    template<class value_t = float, Frequency frequency_t, Time time_t>
     auto load(std::string const &file_name, frequency_t fs, time_t t0 = time_t::zero) {
         signal_t<signal_domain::time, value_t, frequency_t, time_t> result{
             .sampling_frequency = fs,
