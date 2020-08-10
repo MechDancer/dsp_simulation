@@ -19,6 +19,7 @@ int main() {
     
     SAVE_SIGNAL("../data/up_sampling.txt", t0.resample(Hz_t{1e8f / 168 / 4}, 4));
     SAVE_SIGNAL("../data/conv.txt", convolution(t0, t0));
+    SAVE_SIGNAL("../data/xcorr.txt", xcorr(t0, t0));
     fft(f.values);
     SAVE_SIGNAL_TF("../data/f.txt", f, std::abs(x));
     ifft(f.values);

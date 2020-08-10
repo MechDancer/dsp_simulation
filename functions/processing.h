@@ -57,6 +57,45 @@ namespace mechdancer {
         std::transform(A.begin(), A.end(), result.values.begin(), [](complex_t z) { return z.real(); });
         return result;
     }
+    
+    template<Signal _signal_t>
+    _signal_t xcorr(_signal_t const &ref, _signal_t const &signal, size_t size = 0) {
+        using value_t = typename _signal_t::value_t;
+        using complex_t = std::complex<value_t>;
+        using spectrum_t = std::vector<complex_t>;
+        
+        if (ref.sampling_frequency != signal.sampling_frequency)
+            throw std::invalid_argument("the two signals should be with same sampling_frequency");
+        
+        size = enlarge_to_2_power(std::max(ref.values.size() + signal.values.size() - 1, size));
+        auto R = spectrum_t(size, complex_t{}),
+             S = spectrum_t(size, complex_t{});
+        
+        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](value_t x) { return complex_t{x, 0}; });
+        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](value_t x) { return complex_t{x, 0}; });
+        
+        fft(R);
+        fft(S);
+        
+        for (auto p = S.begin(), q = R.begin(); p < S.end(); ++p, ++q)
+            *p *= std::conj(*q);
+        
+        ifft(S);
+        
+        using namespace std::chrono;
+        using namespace std::chrono_literals;
+        auto      lr = ref.values.size();
+        auto      ls = signal.values.size();
+        _signal_t result{
+            .values = std::vector<value_t>(lr + ls - 1),
+            .sampling_frequency = ref.sampling_frequency,
+            .begin_time = duration_cast<typename _signal_t::time_t>(
+                1s / ref.sampling_frequency.template cast_to<Hz_t>().value - ref.begin_time),
+        };
+        std::transform(S.end() - lr + 1, S.end(), result.values.begin(), [](complex_t z) { return z.real(); });
+        std::transform(S.begin(), S.begin() + ls, result.values.begin() + lr - 1, [](complex_t z) { return z.real(); });
+        return result;
+    }
 }
 
 #endif // DSP_SIMULATION_PROCESSING_H

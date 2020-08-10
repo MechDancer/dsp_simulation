@@ -16,14 +16,15 @@ namespace mechdancer {
     /// 信号类型
     /// \tparam _value_t 数据类型
     /// \tparam _frequency_t 频率类型（frequency_t）
-    /// \tparam time_t 时间类型（std::chrono::duration）
-    template<class _value_t, Frequency _frequency_t, Time time_t>
+    /// \tparam _time_t 时间类型（std::chrono::duration）
+    template<class _value_t, Frequency _frequency_t, Time _time_t>
     struct signal_t {
         using value_t = _value_t;
+        using time_t = _time_t;
         
         std::vector<value_t> values;
         _frequency_t         sampling_frequency;
-        time_t               begin_time;
+        _time_t              begin_time;
         
         /// 改变采样率重采样
         /// \tparam new_frequency_t 新采样频率类型
@@ -31,7 +32,7 @@ namespace mechdancer {
         /// \param new_fs 新采样率
         /// \param _times 处理倍率，倍率越高，精度越高
         /// \return 新信号
-        template<Number times_t, Frequency new_frequency_t, Signal new_signal_t = signal_t<_value_t, new_frequency_t, time_t>>
+        template<Number times_t, Frequency new_frequency_t, Signal new_signal_t = signal_t<_value_t, new_frequency_t, _time_t>>
         new_signal_t resample(new_frequency_t new_fs, times_t _times) const {
             using complex_t = std::complex<_value_t>;
             
