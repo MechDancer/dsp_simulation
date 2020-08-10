@@ -1,5 +1,5 @@
 # dsp_simulation
-下一代信号处理仿真实验库，基于 C++20
+新版信号处理仿真实验库，基于 C++20
 
 > [上一版](https://github.com/YdrMaster/signal_processing_simulation)
 
