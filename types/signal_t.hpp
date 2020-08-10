@@ -20,6 +20,7 @@ namespace mechdancer {
     template<class _value_t, Frequency _frequency_t, Time _time_t>
     struct signal_t {
         using value_t = _value_t;
+        using frequency_t = _frequency_t;
         using time_t = _time_t;
         
         std::vector<value_t> values;
