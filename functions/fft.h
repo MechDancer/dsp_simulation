@@ -8,7 +8,9 @@
 #include <cmath>
 #include <complex>
 #include <vector>
+
 #include "../types/concepts.h"
+#include "functions.h"
 
 namespace mechdancer {
     constexpr static auto PI = 3.1415926535897932384626433832795;
@@ -46,14 +48,12 @@ namespace mechdancer {
     /// \param memory 信号数据空间
     template<fft_operation operation = fft_operation::fft, Number t = float>
     void fft(std::vector<std::complex<t>> &memory) {
-        constexpr static auto ω = operation == fft_operation::fft ? omega<t> : i_omega<t>;
-        // 扩大尺寸到 2 的幂
-        size_t n = memory.size();
-        if (((n - 1) & n)) {
-            n = 2;
-            while (n < memory.size()) n <<= 1u;
-            memory.resize(n, std::complex<t>{});
-        }
+        // 编译期断定使用哪种 Ω
+        constexpr static auto Ω = operation == fft_operation::fft ? omega<t> : i_omega<t>;
+        
+        // 扩大尺寸到 2 的幂（以进行基 2 FFT）
+        auto n = enlarge_to_2_power(memory.size());
+        memory.resize(n, std::complex<t>{});
         // 错序
         for (size_t i = 0, j = 0; i < n; ++i) {
             if (i > j) std::swap(memory[i], memory[j]);
@@ -68,7 +68,7 @@ namespace mechdancer {
                     if (b->real() == 0 && b->imag() == 0)
                         *b = *a;
                     else {
-                        const auto c = *b * ω(s * j, n);
+                        const auto c = *b * Ω(s * j, n);
                         *b = *a - c;
                         *a += c;
                     }
@@ -78,6 +78,9 @@ namespace mechdancer {
         }
     }
     
+    /// 反 fft
+    /// \tparam t 复数数据类型
+    /// \param memory 信号数据空间
     template<Number t = float>
     void ifft(std::vector<std::complex<t>> &memory) {
         fft<fft_operation::ifft>(memory);

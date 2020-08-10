@@ -10,7 +10,13 @@
 
 namespace mechdancer {
     template<class t>
-    concept Number = std::is_arithmetic<t>::value;
+    concept Integer = std::is_integral_v<t>;
+    
+    template<class t>
+    concept Floating = std::is_floating_point_v<t>;
+    
+    template<class t>
+    concept Number = std::is_arithmetic_v<t>;
     
     template<class t>
     concept Frequency = requires(t f){ t::value; f.template cast_to<Hz_t>(); };

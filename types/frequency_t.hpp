@@ -23,6 +23,8 @@ namespace mechdancer {
             constexpr static double k = static_cast<double>( ratio::num * target_t::ratio::den) / (ratio::den * target_t::ratio::num);
             return {static_cast<typename target_t::value_t>(value * k)};
         }
+        
+        auto operator<=>(frequency_t const &others) const = default;
     };
     
     using Hz_t = frequency_t<float>;
