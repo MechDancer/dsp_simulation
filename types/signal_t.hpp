@@ -57,8 +57,8 @@ namespace mechdancer {
                 fft(spectrum);
                 auto size = spectrum.size();
                 spectrum.resize(size * times, complex_t{});
-                std::copy(spectrum.begin() + size / 2, spectrum.begin() + size, spectrum.end() - size / 2);
-                std::fill(spectrum.begin() + size / 2, spectrum.end() - size / 2, complex_t{});
+                std::copy_n(spectrum.begin() + size / 2, size / 2, spectrum.end() - size / 2);
+                std::fill(spectrum.begin() + size / 2, spectrum.end() - size, complex_t{});
                 ifft(spectrum);
                 // 再降采样到目标采样率
                 new_signal_t result{
@@ -90,7 +90,7 @@ namespace mechdancer {
                 else {
                     auto p = values.begin();
                     auto q = result.values.begin();
-                    *q++ = p->real();
+                    *q++ = *p;
                     while (q != result.values.end()) {
                         p += interval;
                         *q++ = *p;
