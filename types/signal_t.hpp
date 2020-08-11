@@ -24,8 +24,8 @@ namespace mechdancer {
         using time_t = _time_t;
         
         std::vector<value_t> values;
-        _frequency_t         sampling_frequency;
-        _time_t              begin_time;
+        _frequency_t sampling_frequency;
+        _time_t begin_time;
         
         /// 改变采样率重采样
         /// \tparam new_frequency_t 新采样频率类型
@@ -46,7 +46,7 @@ namespace mechdancer {
                     .begin_time = begin_time,
                 };
             // 在基 2 条件下计算实际重采样倍率和降采样间隔，若间隔过小，要求提高倍率
-            auto times    = enlarge_to_2_power(values.size() * _times) / enlarge_to_2_power(values.size());
+            auto times = enlarge_to_2_power(values.size() * _times) / enlarge_to_2_power(values.size());
             auto interval = static_cast<size_t>(static_cast<double>(old_fs.value * times) / new_fs.value + .5);
             if (interval == 0u)
                 throw std::invalid_argument("processing times is too little");
@@ -152,7 +152,7 @@ namespace mechdancer {
     /// \tparam t 信号类型
     /// \param signal 复信号
     /// \return 复信号实部组成的实信号
-    template<Number _value_t, ComplexSignal<_value_t> t>
+    template<class t, class _value_t = typename t::value_t::value_type> requires ComplexSignal<t, _value_t>
     auto real(t const &signal) {
         auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
         std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
@@ -165,7 +165,7 @@ namespace mechdancer {
     /// \tparam t 信号类型
     /// \param signal 复信号
     /// \return 复信号模组成的实信号
-    template<Number _value_t, ComplexSignal<_value_t> t>
+    template<class t, class _value_t = typename t::value_t::value_type> requires ComplexSignal<t, _value_t>
     auto abs(t const &signal) {
         auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
         std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),

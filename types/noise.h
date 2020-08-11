@@ -48,34 +48,46 @@ namespace mechdancer {
                                [](value_t sum, value_t x) { return sum + x * x; });
     }
     
-    /// 对信号加噪
-    /// \tparam snr_t 信噪比值类型
-    /// \tparam t 信号类型
-    /// \param signal 信号
-    /// \param snr 信噪比
     template<Number snr_t, RealSignal t>
-    void add_noise(t &signal, snr_t snr) {
-        using value_t = typename t::value_t;
-        
-        auto sigma = std::sqrt(energy(signal) / snr / signal.values.size());
-        if (sigma == 0) return;
-        
-        std::random_device                rd{};
-        std::mt19937                      gen{rd()};
-        std::normal_distribution<value_t> d{value_t{}, sigma};
-        
-        for (auto &x : signal.values) {
-            auto temp = d(gen);
-            x += temp;
+    typename t::value_t sigma_noise(t const &signal, snr_t snr) {
+        return std::sqrt(energy(signal) / snr / signal.values.size());
+    }
+    
+    /// 给信号加上高斯白噪声
+    /// \tparam t 实信号类型
+    /// \tparam sigma_t 标准差值类型
+    /// \param signal 实信号
+    /// \param sigma 噪声标准差
+    template<RealSignal t, Number sigma_t>
+    void add_noise(t &signal, sigma_t sigma) {
+        if (sigma != 0) {
+            using value_t = typename t::value_t;
+            std::random_device                rd{};
+            std::mt19937                      gen{rd()};
+            std::normal_distribution<value_t> d{value_t{}, sigma};
+            for (auto &x : signal.values) x += d(gen);
         }
     }
     
-    /// 按分贝对信号加噪
-    /// \tparam t 信号类型
-    /// \param signal 信号
-    /// \param snr 信噪比
-    template<Number snr_t, RealSignal t>
-    void add_noise(t &signal, db_t<snr_t> snr) {
+    /// 给信号加上高斯白噪声
+    /// \tparam snr_t 信噪比值类型
+    /// \tparam t 实信号类型
+    /// \tparam _value_t 信号数据类型
+    /// \param signal 实信号
+    /// \param snr 信噪比数值
+    template<RealSignal t, Number snr_t>
+    void add_noise_measured(t &signal, snr_t snr) {
+        add_noise(signal, sigma_noise(signal, snr));
+    }
+    
+    /// 给信号加上高斯白噪声
+    /// \tparam snr_t 信噪比值类型
+    /// \tparam t 实信号类型
+    /// \tparam _value_t 信号数据类型
+    /// \param signal 实信号
+    /// \param snr 信噪比数值
+    template<RealSignal t, Number snr_t>
+    void add_noise_measured(t &signal, db_t<snr_t> snr) {
         add_noise(signal, snr.to_ratio());
     }
 }

@@ -5,16 +5,18 @@
 
 #include "functions/builders.h"
 #include "functions/processing.h"
-#include "types/db_t.hpp"
-
-using namespace mechdancer;
-using namespace std::chrono;
-using namespace std::chrono_literals;
+#include "types/noise.h"
 
 int main() {
+    // region 准备环境
+    using namespace mechdancer;
+    using namespace std::chrono;
+    using namespace std::chrono_literals;
+    
     std::filesystem::remove_all("../data");
     std::filesystem::create_directory("../data");
-    
+    // endregion
+    // region 仿真
     // 收发系统
     auto transceiver = load("C:\\Users\\ydrml\\Desktop\\数据\\2048_1M.txt", 1_MHz, 0s);
     std::for_each(transceiver.values.begin(), transceiver.values.end(), [_mean = mean(transceiver.values)](auto &x) { x -= _mean; });
@@ -26,18 +28,10 @@ int main() {
     SAVE_SIGNAL("../data/reference.txt", reference);
     // 加噪
     auto received = reference;
-    add_noise(received, -2_db);
+    add_noise_measured(received, -2_db);
     SAVE_SIGNAL("../data/received.txt", received);
-    
-    SAVE_SIGNAL("../data/resampled.txt", reference.resample(Hz_t{1e8f / 168 / 4}, 4));
-    SAVE_SIGNAL_TF("../data/hilbert.txt", hilbert(reference), std::abs(x));
-    SAVE_SIGNAL("../data/xcorr.txt", xcorr(reference, reference));
-    
-    auto f = complex(reference);
-    fft(f.values);
-    SAVE_SIGNAL_TF("../data/f.txt", f, std::abs(x));
-    ifft(f.values);
-    SAVE_SIGNAL_TF("../data/t.txt", f, x.real());
-    
+    // endregion
+    // region 测试算法
+    // endregion
     return 0;
 }
