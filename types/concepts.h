@@ -31,6 +31,12 @@ namespace mechdancer {
         signal.sampling_frequency;
         signal.begin_time;
     };
+    
+    template<class t>
+    concept RealSignal = Signal<t> && Number<typename t::value_t>;
+    
+    template<class t, class u>
+    concept ComplexSignal = Signal<t> && Number<u> && std::same_as<typename t::value_t, u>;
 }
 
 #endif //DSP_SIMULATION_CONCEPTS_H

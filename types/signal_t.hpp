@@ -132,6 +132,46 @@ namespace mechdancer {
     auto complex_signal_of(size_t size, frequency_t frequency, time_t time) {
         return real_signal_of<std::complex<_value_t>>(size, frequency, time);
     }
+    
+    /// 实信号作为实部生成复信号
+    /// \tparam t 信号类型
+    /// \param signal 实信号
+    /// \return 复信号
+    template<RealSignal t>
+    auto complex(t const &signal) {
+        using value_t = typename t::value_t;
+        
+        auto result = complex_signal_of<value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
+        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
+                       [](value_t x) { return std::complex<value_t>{x, 0}; });
+        return result;
+    }
+    
+    /// 复信号以取实部的方式转换为实信号
+    /// \tparam _value_t 复数值类型
+    /// \tparam t 信号类型
+    /// \param signal 复信号
+    /// \return 复信号实部组成的实信号
+    template<Number _value_t, ComplexSignal<_value_t> t>
+    auto real(t const &signal) {
+        auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
+        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
+                       [](std::complex<_value_t> z) { return z.real(); });
+        return result;
+    }
+    
+    /// 复信号以取模的方式转换为实信号
+    /// \tparam _value_t 复数值类型
+    /// \tparam t 信号类型
+    /// \param signal 复信号
+    /// \return 复信号模组成的实信号
+    template<Number _value_t, ComplexSignal<_value_t> t>
+    auto abs(t const &signal) {
+        auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
+        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
+                       [](std::complex<_value_t> z) { return std::abs(z); });
+        return result;
+    }
 }
 
 #endif // DSP_SIMULATION_SIGNAL_T_HPP
