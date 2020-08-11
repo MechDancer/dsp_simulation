@@ -27,7 +27,7 @@ namespace mechdancer {
     /// \param b 信号 2
     /// \param size 计算长度
     /// \return 卷积信号
-    template<Signal _signal_t>
+    template<RealSignal _signal_t>
     _signal_t convolution(_signal_t const &a, _signal_t const &b, size_t size = 0) {
         using value_t = typename _signal_t::value_t;
         using complex_t = std::complex<value_t>;
@@ -82,7 +82,7 @@ namespace mechdancer {
     /// \param signal 目标信号
     /// \param size 计算长度
     /// \return 互相关谱
-    template<correlation_mode mode = correlation_mode::basic, Signal _signal_t>
+    template<correlation_mode mode = correlation_mode::basic, RealSignal _signal_t>
     _signal_t xcorr(_signal_t const &ref, _signal_t const &signal, size_t size = 0) {
         using value_t = typename _signal_t::value_t;
         using complex_t = std::complex<value_t>;
@@ -136,7 +136,7 @@ namespace mechdancer {
     /// \tparam new_signal_t 新信号类型（复信号）
     /// \param signal 原信号
     /// \return 希尔伯特谱
-    template<Signal _signal_t,
+    template<RealSignal _signal_t,
         class _value_t = typename _signal_t::value_t,
         class complex_t = std::complex<_value_t>,
         class new_signal_t = signal_t<
