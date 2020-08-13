@@ -1,5 +1,4 @@
 #include <iostream>
-#include <complex>
 #include <algorithm>
 #include <filesystem>
 
@@ -24,7 +23,7 @@ int main() {
     constexpr static auto FRAME_STEP = 256;  // 帧间步进量
     // region 信源信道仿真
     // 收发系统
-    auto transceiver = load("C:\\Users\\ydrml\\Desktop\\数据\\2048_1M.txt", MAIN_FS, 0s);
+    auto transceiver = load("../2048_1M.txt", MAIN_FS, 0s);
     std::for_each(transceiver.values.begin(), transceiver.values.end(), [_mean = mean(transceiver.values)](auto &x) { x -= _mean; });
     // 激励信号
     auto excitation = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
