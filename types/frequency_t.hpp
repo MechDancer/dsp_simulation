@@ -6,6 +6,10 @@
 #define DSP_SIMULATION_FREQUENCY_T_HPP
 
 #include <ratio>
+#include <cmath>
+#include <chrono>
+
+#include "concepts.h"
 
 namespace mechdancer {
     /// ∆µ¬ ¿‡–Õ
@@ -20,8 +24,20 @@ namespace mechdancer {
         
         template<class target_t>
         target_t cast_to() const {
-            constexpr static double k = static_cast<double>( ratio::num * target_t::ratio::den) / (ratio::den * target_t::ratio::num);
+            constexpr static double k = static_cast<double>(ratio::num * target_t::ratio::den) / (ratio::den * target_t::ratio::num);
             return {static_cast<typename target_t::value_t>(value * k)};
+        }
+        
+        template<class t>
+        size_t index_of(t time) const {
+            constexpr static double k = static_cast<double>(ratio::num) / (ratio::den);
+            return std::round(floating_seconds(time).count() * k * value);
+        }
+        
+        template<class t>
+        t duration_of(size_t n) const {
+            constexpr static double k = static_cast<double>(ratio::num) / (ratio::den);
+            return std::chrono::duration_cast<t>(floating_seconds(n / k / value));
         }
         
         auto operator<=>(frequency_t const &others) const = default;

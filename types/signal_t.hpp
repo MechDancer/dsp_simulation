@@ -26,8 +26,6 @@ namespace mechdancer {
         std::vector<value_t> values;
         _frequency_t sampling_frequency;
         _time_t begin_time;
-        
-      
     };
     
     /// 构造空的实信号

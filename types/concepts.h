@@ -11,6 +11,8 @@
 #include "frequency_t.hpp"
 
 namespace mechdancer {
+    using floating_seconds = std::chrono::duration<float>;
+    
     template<class t>
     concept Integer = std::is_integral_v<t>;
     
@@ -24,7 +26,7 @@ namespace mechdancer {
     concept Frequency = requires(t f){ t::value; f.template cast_to<Hz_t>(); };
     
     template<class t>
-    concept Time = requires(t time) { t::zero; std::chrono::duration_cast<std::chrono::duration<double>>(time); };
+    concept Time = requires(t time) { t::zero; std::chrono::duration_cast<floating_seconds>(time); };
     
     template<class t>
     concept Signal = requires(t signal){

@@ -48,9 +48,14 @@ namespace mechdancer {
                                [](value_t sum, value_t x) { return sum + x * x; });
     }
     
-    template<Number snr_t, RealSignal t>
+    template<RealSignal t, Number snr_t>
     typename t::value_t sigma_noise(t const &signal, snr_t snr) {
         return std::sqrt(energy(signal) / snr / signal.values.size());
+    }
+    
+    template<RealSignal t, Number snr_t>
+    typename t::value_t sigma_noise(t const &signal, db_t<snr_t> snr) {
+        return sigma_noise(signal, snr.to_ratio());
     }
     
     /// 给信号加上高斯白噪声

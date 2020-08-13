@@ -5,6 +5,7 @@
 #ifndef DSP_SIMULATION_PROCESSING_H
 #define DSP_SIMULATION_PROCESSING_H
 
+#include <type_traits>
 #include <vector>
 #include <numeric>
 #include <functional>
@@ -76,6 +77,16 @@ namespace mechdancer {
         return std::conj(r) * s / std::abs(s);
     }
     
+//    template<RealSignal _signal_t>
+//    auto correlation_init(_signal_t const &ref, size_t size = 0) {
+//        using value_t = typename _signal_t::value_t;
+//        using complex_t = std::complex<value_t>;
+//        using spectrum_t = std::vector<complex_t>;
+//
+//        size = enlarge_to_2_power(std::max(ref.values.size(), size));
+//
+//    }
+    
     /// 频域互相关
     /// \tparam _signal_t 信号类型
     /// \param ref 参考信号
@@ -83,7 +94,7 @@ namespace mechdancer {
     /// \param size 计算长度
     /// \return 互相关谱
     template<correlation_mode mode = correlation_mode::basic, RealSignal _signal_t>
-    _signal_t xcorr(_signal_t const &ref, _signal_t const &signal, size_t size = 0) {
+    _signal_t correlation(_signal_t const &ref, _signal_t const &signal, size_t size = 0) {
         using value_t = typename _signal_t::value_t;
         using complex_t = std::complex<value_t>;
         using spectrum_t = std::vector<complex_t>;
@@ -171,7 +182,10 @@ namespace mechdancer {
             ifft(spectrum);
             // 再降采样到目标采样率
             new_signal_t result{
-                .values = data_t((spectrum.size() + interval - 1) / interval),
+                // 第一项是频谱操作过后能采到的最大值
+                // 第二项是从时域看应该采到的数量
+                // 实际采样是两种算法中较小的那种
+                .values = data_t(std::min((spectrum.size() + interval - 1) / interval, values.size() * _times / interval)),
                 .sampling_frequency = new_fs,
                 .begin_time =signal.begin_time,
             };
@@ -188,7 +202,7 @@ namespace mechdancer {
             }
             return result;
         } else {
-            // 从原信号直接降采样
+            // 从原信号直接时域降采样，尽量多采
             new_signal_t result{
                 .values = data_t((values.size() + interval - 1) / interval),
                 .sampling_frequency = new_fs,
@@ -250,6 +264,43 @@ namespace mechdancer {
             .sampling_frequency = signal.sampling_frequency,
             .begin_time = signal.begin_time,
         };
+    }
+    
+    template<class a, class b, class else_then>
+    using same_or = std::conditional_t<std::is_same_v<a, b>, a, else_then>;
+    
+    template<class t>
+    static float seconds(t tt) { return floating_seconds(tt).count(); }
+    
+    template<RealSignal A, RealSignal B>
+    auto sum(A const &a, B const &b) {
+        using value_t = same_or<typename A::value_t, typename B::value_t, float>;
+        using frequency_t = same_or<typename A::frequency_t, typename B::frequency_t, Hz_t>;
+        using time_t = same_or<typename A::time_t, typename B::time_t, floating_seconds>;
+        using result_t = signal_t<value_t, frequency_t, time_t>;
+        
+        const auto fa = a.sampling_frequency.template cast_to<frequency_t>();
+        const auto fb = b.sampling_frequency.template cast_to<frequency_t>();
+        if (fa != fb) throw std::invalid_argument("");
+        
+        const auto ta = std::chrono::duration_cast<time_t>(a.begin_time);
+        const auto tb = std::chrono::duration_cast<time_t>(b.begin_time);
+        auto result = result_t{
+            .sampling_frequency = fa,
+            .begin_time = std::min(ta, tb),
+        };
+        
+        const size_t ia = result.sampling_frequency.index_of(ta - result.begin_time);
+        const size_t ib = result.sampling_frequency.index_of(tb - result.begin_time);
+        result.values.resize(std::max(ia + a.values.size(), ib + b.values.size()));
+        
+        std::transform(a.values.begin(), a.values.end(), result.values.begin() + ia, [](auto x) { return static_cast<value_t>(x); });
+        auto p = b.values.begin();
+        auto q = result.values.begin() + ib;
+        while (p < b.values.end())
+            *q++ += static_cast<value_t>(*p++);
+        
+        return result;
     }
 }
 

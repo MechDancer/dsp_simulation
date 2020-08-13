@@ -13,18 +13,17 @@
 
 namespace mechdancer {
     template<Number value_t>
-    static value_t chirp_value(float f0, float k, std::chrono::duration<float> t) {
+    static value_t chirp_value(float f0, float k, floating_seconds t) {
         return static_cast<value_t>(std::sin(2 * PI * (f0 + k * t.count()) * t.count()));
     }
     
     template<Number value_t = float, Frequency f_t, Time t_t>
     auto chirp(f_t f0, f_t f1, t_t time) {
         using namespace std::placeholders;
-        using float_s_t = std::chrono::duration<float>;
         
         auto f0_Hz = f0.template cast_to<Hz_t>().value;
         auto k = (f1.template cast_to<Hz_t>().value - f0_Hz)
-                 / float_s_t(time).count()
+                 / floating_seconds(time).count()
                  / 2;
         
         return std::bind(chirp_value<value_t>, f0_Hz, k, _1);
@@ -78,9 +77,7 @@ namespace mechdancer {
         
         std::ifstream file(file_name);
         value_t value;
-        
-        while (file >> value)
-            result.values.push_back(value);
+        while (file >> value) result.values.push_back(value);
         return result;
     }
     
