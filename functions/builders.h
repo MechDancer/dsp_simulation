@@ -21,12 +21,12 @@ namespace mechdancer {
     auto chirp(f_t f0, f_t f1, t_t time) {
         using namespace std::placeholders;
         using float_s_t = std::chrono::duration<float>;
-    
+        
         auto f0_Hz = f0.template cast_to<Hz_t>().value;
-        auto k     = (f1.template cast_to<Hz_t>().value - f0_Hz)
-                     / float_s_t(time).count()
-                     / 2;
-    
+        auto k = (f1.template cast_to<Hz_t>().value - f0_Hz)
+                 / float_s_t(time).count()
+                 / 2;
+        
         return std::bind(chirp_value<value_t>, f0_Hz, k, _1);
     }
     
@@ -51,7 +51,7 @@ namespace mechdancer {
         };
         
         auto dt = float_s_t(1) / fs.template cast_to<Hz_t>().value;
-        auto t  = float_s_t(t0);
+        auto t = float_s_t(t0);
         
         for (auto &x : result.values) {
             x = origin(t);
@@ -77,7 +77,7 @@ namespace mechdancer {
         };
         
         std::ifstream file(file_name);
-        value_t       value;
+        value_t value;
         
         while (file >> value)
             result.values.push_back(value);
@@ -94,14 +94,16 @@ namespace mechdancer {
         for (std::ofstream file(file_name); auto x : signal.values) formatter(file, x);
     }
     
-    #define SAVE_SIGNAL(PATH, S) \
-    save(PATH, S, [](std::ofstream &file, typename decltype(S)::value_t x) { file << x << std::endl; })
-    
-    #define SAVE_SIGNAL_TF(PATH, S, TF) \
-    save(PATH, S, [](std::ofstream &file, typename decltype(S)::value_t x) { file << (TF) << std::endl; })
-    
-    #define SAVE_SIGNAL_FORMAT(PATH, S, TF) \
-    save(PATH, S, [](std::ofstream &file, typename decltype(S)::value_t x) { file << TF; })
+    #define SAVE_SIGNAL_FORMAT(PATH, S, TF) save(PATH, S, [](std::ofstream &file, typename decltype(S)::value_t x) { file << TF; })
+    #define SAVE_SIGNAL_TF(PATH, S, TF) SAVE_SIGNAL_FORMAT(PATH, S, (TF) << std::endl)
+    #define SAVE_SIGNAL(PATH, S) SAVE_SIGNAL_TF(PATH, S, x)
+    #define SAVE_SIGNAL_AUTO(PATH, S) { \
+        std::stringstream builder;      \
+        for(auto &part : PATH)          \
+            builder << part << '/';     \
+        builder << #S << ".txt";        \
+        SAVE_SIGNAL(builder.str(), S);  \
+    }
 }
 
 #endif // DSP_SIMULATION_BUILDERS_H
