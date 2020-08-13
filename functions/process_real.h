@@ -2,8 +2,8 @@
 // Created by ydrml on 2020/8/7.
 //
 
-#ifndef DSP_SIMULATION_PROCESSING_H
-#define DSP_SIMULATION_PROCESSING_H
+#ifndef DSP_SIMULATION_PROCESS_REAL_H
+#define DSP_SIMULATION_PROCESS_REAL_H
 
 #include <type_traits>
 #include <vector>
@@ -266,12 +266,6 @@ namespace mechdancer {
         };
     }
     
-    template<class a, class b, class else_then>
-    using same_or = std::conditional_t<std::is_same_v<a, b>, a, else_then>;
-    
-    template<class t>
-    static float seconds(t tt) { return floating_seconds(tt).count(); }
-    
     template<RealSignal A, RealSignal B>
     auto sum(A const &a, B const &b) {
         using value_t = same_or<typename A::value_t, typename B::value_t, float>;
@@ -304,4 +298,4 @@ namespace mechdancer {
     }
 }
 
-#endif // DSP_SIMULATION_PROCESSING_H
+#endif // DSP_SIMULATION_PROCESS_REAL_H

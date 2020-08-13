@@ -3,7 +3,8 @@
 #include <filesystem>
 
 #include "functions/builders.h"
-#include "functions/processing.h"
+#include "functions/process_real.h"
+#include "functions/process_complex.h"
 #include "types/noise.h"
 
 int main() {
@@ -71,7 +72,19 @@ int main() {
     }
     // endregion
     // region 算法仿真（流水线操作）
+    std::ofstream file("../data/spectrum.txt");
     for (auto const &frame : frames) {
+        // 带通滤波
+        auto spectrum = fft<float>(frame);
+        spectrum.values.erase(spectrum.values.begin() + FRAME_SIZE / 8, spectrum.values.end() - FRAME_SIZE / 8);
+        spectrum.sampling_frequency = 150_kHz;
+        bandpass(spectrum, 39_kHz, 61_kHz);
+        ifft(spectrum.values);
+        auto part = real(spectrum);
+        // 分帧保存到文件
+        for (auto &value : part.values)
+            file << value << '\t';
+        file << std::endl;
     }
     // endregion
     return 0;

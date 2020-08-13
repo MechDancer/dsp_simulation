@@ -8,6 +8,10 @@
 #include "../types/concepts.h"
 
 namespace mechdancer {
+    /// 若两个类型相同，取此类型，否则取第三个类型
+    template<class a, class b, class else_then>
+    using same_or = std::conditional_t<std::is_same_v<a, b>, a, else_then>;
+    
     template<Integer t>
     t enlarge_to_2_power(t value) {
         if ((value - 1) & value) {

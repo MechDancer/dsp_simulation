@@ -39,8 +39,8 @@ namespace mechdancer {
     template<class t>
     concept RealSignal = Signal<t> && Number<typename t::value_t>;
     
-    template<class t, class u>
-    concept ComplexSignal = Signal<t> && Number<u> && std::same_as<typename t::value_t, std::complex<u>>;
+    template<class t>
+    concept ComplexSignal = Signal<t> && std::same_as<typename t::value_t, std::complex<typename t::value_t::value_type>>;
 }
 
 #endif //DSP_SIMULATION_CONCEPTS_H
