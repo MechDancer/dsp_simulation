@@ -7,7 +7,7 @@
 #include "functions/process_complex.h"
 #include "types/noise.h"
 
-void fun() {
+int main() {
     // region 准备环境
     using namespace mechdancer;
     using namespace std::chrono;
@@ -18,25 +18,30 @@ void fun() {
     // endregion
     constexpr static auto PATH = "../data";  // 数据保存路径
     constexpr static auto MAIN_FS = 1_MHz;   // 仿真采样率（取决于测量脉冲响应的采样率）
-    constexpr static auto DISTANCE = 5;      // 实际距离（米）
+    constexpr static auto DISTANCE = 4;      // 实际距离（米）
     constexpr static auto TEMPERATURE = 20;  // 气温（℃）
     constexpr static auto FRAME_SIZE = 1024; // 帧长度
     // region 信源信道仿真
     // 收发系统
-    auto transceiver = load("../2048_1M.txt", MAIN_FS, 0s);
-    std::for_each(transceiver.values.begin(), transceiver.values.end(), [_mean = mean(transceiver.values)](auto &x) { x -= _mean; });
-    // 激励信号
-    auto excitation = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
+    auto transceiver0 = load("../2048_1M_0.txt", MAIN_FS, 0s);
+    auto transceiver1 = load("../2048_1M_1.txt", MAIN_FS, 0s);
+    // 激励信号（加噪）
+    auto excitation_pure = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
+    SAVE_SIGNAL_AUTO({ PATH }, excitation_pure)
+    auto excitation = excitation_pure;
+    add_noise_measured(excitation, 0_db);
     SAVE_SIGNAL_AUTO({ PATH }, excitation)
     // 参考接收
-    auto reference = convolution(transceiver, excitation);
-    SAVE_SIGNAL_AUTO({ PATH }, reference)
+    auto reference0 = convolution(transceiver0, excitation);
+    auto reference1 = convolution(transceiver1, excitation);
+    SAVE_SIGNAL_AUTO({ PATH }, reference0)
+    SAVE_SIGNAL_AUTO({ PATH }, reference1)
     // 加噪
     auto DELAY = floating_seconds(DISTANCE / (20.048 * std::sqrt(TEMPERATURE + 273.15)));
-    auto received = real_signal_of(reference.values.size(), reference.sampling_frequency, DELAY);
-    std::copy(reference.values.begin(), reference.values.end(), received.values.begin());
+    auto received = real_signal_of(reference0.values.size(), reference0.sampling_frequency, DELAY);
+    std::copy(reference0.values.begin(), reference0.values.end(), received.values.begin());
     auto delay_received = sum(real_signal_of(30000, MAIN_FS, 0s), received);
-    add_noise(delay_received, sigma_noise(received, -8_db));
+    add_noise(delay_received, sigma_noise(received, -5_db));
     SAVE_SIGNAL_AUTO({ PATH }, delay_received)
     // endregion
     // region 接收机仿真
@@ -69,12 +74,13 @@ void fun() {
         }
     }
     // endregion
-    // region 算法仿真（流水线操作）
+    // region 算法仿真
     std::ofstream file("../data/spectrum.txt");
     auto buffer = real_signal_of(768, 150_kHz, 0s);
-    auto last = 0;
-    auto state = false;
+    auto reference150kHz = resample(reference1, 150_kHz, 4);
+    reference150kHz.values.erase(reference150kHz.values.begin() + 256, reference150kHz.values.end());
     for (auto const &frame : frames) {
+        constexpr static auto threshold = 1.6;
         // 降采样
         auto spectrum = fft<float>(frame);
         spectrum.values.erase(spectrum.values.begin() + FRAME_SIZE / 8, spectrum.values.end() - FRAME_SIZE / 8);
@@ -86,22 +92,14 @@ void fun() {
         // 保存为叠帧
         std::move(buffer.values.begin() + 256, buffer.values.end(), buffer.values.begin());
         std::copy(part.values.begin(), part.values.end(), buffer.values.begin() + 512);
-        // 计算信号最大幅值变化，以判断信号是否在帧内
-        auto max = .0f;
-        for (auto x : buffer.values) max = std::max(max, std::abs(x));
-        auto k = max / (max > last ? std::exchange(last, max) : last);
-        if (std::isfinite(k)) {
-            state = k > (state ? .625 : 1.6);
-            std::cout << state << '\t' << k << std::endl;
-        }
-        // 分帧保存到文件
-        if(state) for (auto value : buffer.values) file << value << '\t';
+        // 计算互相关
+        auto temp = correlation(reference150kHz, buffer);
+        for (auto value : temp.values) file << value << '\t';
+        file << std::endl;
+        temp = correlation<correlation_mode::noise_reduction>(reference150kHz, buffer);
+        for (auto value : temp.values) file << value << '\t';
         file << std::endl;
     }
     // endregion
-}
-
-int main() {
-    fun();
     return 0;
 }
