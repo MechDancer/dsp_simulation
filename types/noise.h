@@ -82,7 +82,7 @@ namespace mechdancer {
     /// \param snr 信噪比数值
     template<RealSignal t, Number snr_t>
     void add_noise_measured(t &signal, snr_t snr) {
-        if(snr > 0) add_noise(signal, sigma_noise(signal, snr));
+        add_noise(signal, sigma_noise(signal, snr));
     }
     
     /// 给信号加上高斯白噪声

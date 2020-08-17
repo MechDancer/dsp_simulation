@@ -93,50 +93,52 @@ namespace mechdancer {
     /// \param signal 目标信号
     /// \param size 计算长度
     /// \return 互相关谱
-    template<correlation_mode mode = correlation_mode::basic, RealSignal _signal_t>
-    _signal_t correlation(_signal_t const &ref, _signal_t const &signal, size_t size = 0) {
-        using value_t = typename _signal_t::value_t;
-        using complex = complex_t<value_t>;
-        using spectrum_t = std::vector<complex>;
+    template<correlation_mode mode = correlation_mode::basic, RealSignal Tr, RealSignal Ts>
+    auto correlation(Tr const &ref, Ts const &signal) {
+        using common_t = common_type<Tr, Ts>;
+        
+        using Tx = typename common_t::value_t;
+        using Tf = typename common_t::frequency_t;
+        using Tt = typename common_t::time_t;
         
         constexpr static auto
             fun = mode == correlation_mode::basic
-                  ? correlation_basic<value_t>
+                  ? correlation_basic<Tx>
                   : mode == correlation_mode::phat
-                    ? correlation_phat<value_t>
-                    : correlation_noise_reduction<value_t>;
+                    ? correlation_phat<Tx>
+                    : correlation_noise_reduction<Tx>;
         
-        if (ref.sampling_frequency != signal.sampling_frequency)
+        const auto fs = signal.sampling_frequency.template cast_to<Tf>();
+        
+        if (ref.sampling_frequency.template cast_to<Tf>() != fs)
             throw std::invalid_argument("the two signals should be with same sampling_frequency");
         
-        size = enlarge_to_2_power(std::max(ref.values.size() + signal.values.size() - 1, size));
-        auto R = spectrum_t(size, complex::zero),
-            S = spectrum_t(size, complex::zero);
+        auto size = enlarge_to_2_power(ref.values.size() + signal.values.size() - 1);
+        auto R = std::vector<complex_t<Tx>>(size, complex_t<Tx>::zero);
+        auto S = std::vector<complex_t<Tx>>(size, complex_t<Tx>::zero);
         
-        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](value_t x) { return complex{x, 0}; });
-        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](value_t x) { return complex{x, 0}; });
+        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](auto x) { return complex_t<Tx>{static_cast<Tx>(x), 0}; });
+        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](auto x) { return complex_t<Tx>{static_cast<Tx>(x), 0}; });
         
         fft(R);
         fft(S);
         for (auto p = S.begin(), q = R.begin(); p < S.end(); ++p, ++q)
             if (q->is_zero())
-                *p = complex::zero;
+                *p = complex_t<Tx>::zero;
             else if (!p->is_zero())
                 *p = fun(*q, *p);
         ifft(S);
         
         using namespace std::chrono;
-        using namespace std::chrono_literals;
         auto lr = ref.values.size();
         auto ls = signal.values.size();
-        _signal_t result{
-            .values = std::vector<value_t>(lr + ls - 1),
-            .sampling_frequency = ref.sampling_frequency,
-            .begin_time = duration_cast<typename _signal_t::time_t>(
-                1s / ref.sampling_frequency.template cast_to<Hz_t>().value - ref.begin_time),
+        common_t result{
+            .values = std::vector<Tx>(lr + ls - 1),
+            .sampling_frequency = fs,
+            .begin_time = duration_cast<Tt>(floating_seconds(1) / fs.template cast_to<Hz_t>().value - ref.begin_time),
         };
-        std::transform(S.end() - lr + 1, S.end(), result.values.begin(), [](complex z) { return z.re; });
-        std::transform(S.begin(), S.begin() + ls, result.values.begin() + lr - 1, [](complex z) { return z.re; });
+        std::transform(S.end() - lr + 1, S.end(), result.values.begin(), [](auto z) { return z.re; });
+        std::transform(S.begin(), S.begin() + ls, result.values.begin() + lr - 1, [](auto z) { return z.re; });
         return result;
     }
     
@@ -149,7 +151,6 @@ namespace mechdancer {
     template<RealSignal _signal_t, Frequency new_frequency_t, Number times_t>
     auto resample(_signal_t const &signal, new_frequency_t new_fs, times_t _times) {
         using value_t = typename _signal_t::value_t;
-        using data_t = std::vector<value_t>;
         using new_signal_t = signal_t<value_t, new_frequency_t, typename _signal_t::time_t>;
         
         const auto &values = signal.values;
@@ -163,9 +164,10 @@ namespace mechdancer {
                 .begin_time = signal.begin_time,
             };
         // 在基 2 条件下计算实际重采样倍率和降采样间隔，若间隔过小，要求提高倍率
-        auto times = enlarge_to_2_power(values.size() * _times) / enlarge_to_2_power(values.size());
-        auto interval = static_cast<size_t>(static_cast<double>(old_fs.value * times) / new_fs.value + .5);
-        if (interval == 0u)
+        const auto times = enlarge_to_2_power(values.size() * (_times + 1) - 1) / enlarge_to_2_power(values.size());
+        const auto interval = static_cast<double>(times) * old_fs.value / new_fs.value;
+        const auto max = static_cast<size_t>(signal.values.size() * times / interval + 1) + 1;
+        if (interval < 1)
             throw std::invalid_argument("processing times is too little");
         // 按是否进行升采样分类
         if (times > 1) {
@@ -175,48 +177,33 @@ namespace mechdancer {
             
             fft(spectrum);
             auto size = spectrum.size();
+            auto extra = spectrum[size / 2];
             spectrum.resize(size * times, complex_t<value_t>::zero);
-            std::copy_n(spectrum.begin() + size / 2, size / 2, spectrum.end() - size / 2);
-            std::fill(spectrum.begin() + size / 2, spectrum.end() - size, complex_t<value_t>::zero);
+            std::copy_n(spectrum.begin() + size / 2 + 1, size / 2 - 1, spectrum.end() - size / 2 + 1);
+            std::fill(spectrum.begin() + size / 2, spectrum.end() - size / 2 + 1, complex_t<value_t>::zero);
+            spectrum[spectrum.size() / 2] = extra;
             ifft(spectrum);
             // 再降采样到目标采样率
             new_signal_t result{
-                // 第一项是频谱操作过后能采到的最大值
-                // 第二项是从时域看应该采到的数量
-                // 实际采样是两种算法中较小的那种
-                .values = data_t(std::min((spectrum.size() + interval - 1) / interval, values.size() * _times / interval)),
                 .sampling_frequency = new_fs,
                 .begin_time =signal.begin_time,
             };
-            if (interval == 1u)
-                std::transform(spectrum.begin(), spectrum.end(), result.values.begin(), [](complex_t<value_t> z) { return z.re; });
-            else {
-                auto p = spectrum.begin();
-                auto q = result.values.begin();
-                *q++ = p->re;
-                while (q != result.values.end()) {
-                    p += interval;
-                    *q++ = p->re;
-                }
+            for (auto i = 0; i < max; ++i) {
+                auto j = static_cast<size_t>(std::lround(i * interval));
+                if (j >= spectrum.size()) break;
+                result.values.push_back(spectrum[j].re);
             }
             return result;
         } else {
             // 从原信号直接时域降采样，尽量多采
             new_signal_t result{
-                .values = data_t((values.size() + interval - 1) / interval),
                 .sampling_frequency = new_fs,
                 .begin_time = signal.begin_time,
             };
-            if (interval == 1u)
-                std::copy(values.begin(), values.end(), result.values.begin());
-            else {
-                auto p = values.begin();
-                auto q = result.values.begin();
-                *q++ = *p;
-                while (q != result.values.end()) {
-                    p += interval;
-                    *q++ = *p;
-                }
+            for (auto i = 0; i < max; ++i) {
+                auto j = static_cast<size_t>(std::lround(i * interval));
+                if (j >= signal.values.size()) break;
+                result.values.push_back(signal.values[j]);
             }
             return result;
         }
@@ -266,10 +253,11 @@ namespace mechdancer {
     
     template<RealSignal A, RealSignal B>
     auto sum(A const &a, B const &b) {
-        using value_t = same_or<typename A::value_t, typename B::value_t, float>;
-        using frequency_t = same_or<typename A::frequency_t, typename B::frequency_t, Hz_t>;
-        using time_t = same_or<typename A::time_t, typename B::time_t, floating_seconds>;
-        using result_t = signal_t<value_t, frequency_t, time_t>;
+        using common_t = common_type<A, B>;
+        
+        using value_t = typename common_t::value_t;
+        using frequency_t = typename common_t::frequency_t;
+        using time_t = typename common_t::time_t;
         
         const auto fa = a.sampling_frequency.template cast_to<frequency_t>();
         const auto fb = b.sampling_frequency.template cast_to<frequency_t>();
@@ -277,7 +265,7 @@ namespace mechdancer {
         
         const auto ta = std::chrono::duration_cast<time_t>(a.begin_time);
         const auto tb = std::chrono::duration_cast<time_t>(b.begin_time);
-        auto result = result_t{
+        auto result = common_t{
             .sampling_frequency = fa,
             .begin_time = std::min(ta, tb),
         };
@@ -289,8 +277,7 @@ namespace mechdancer {
         std::transform(a.values.begin(), a.values.end(), result.values.begin() + ia, [](auto x) { return static_cast<value_t>(x); });
         auto p = b.values.begin();
         auto q = result.values.begin() + ib;
-        while (p < b.values.end())
-            *q++ += static_cast<value_t>(*p++);
+        while (p < b.values.end()) *q++ += static_cast<value_t>(*p++);
         
         return result;
     }
