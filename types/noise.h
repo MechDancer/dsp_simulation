@@ -49,12 +49,12 @@ namespace mechdancer {
     }
     
     template<RealSignal t, Number snr_t>
-    typename t::value_t sigma_noise(t const &signal, snr_t snr) {
-        return std::sqrt(energy(signal) / snr / signal.values.size());
+    auto sigma_noise(t const &signal, snr_t snr) {
+        return static_cast<typename t::value_t>(std::sqrt(energy(signal) / snr / signal.values.size()));
     }
     
     template<RealSignal t, Number snr_t>
-    typename t::value_t sigma_noise(t const &signal, db_t<snr_t> snr) {
+    auto sigma_noise(t const &signal, db_t<snr_t> snr) {
         return sigma_noise(signal, snr.to_ratio());
     }
     
@@ -82,7 +82,7 @@ namespace mechdancer {
     /// \param snr 信噪比数值
     template<RealSignal t, Number snr_t>
     void add_noise_measured(t &signal, snr_t snr) {
-        add_noise(signal, sigma_noise(signal, snr));
+        if(snr > 0) add_noise(signal, sigma_noise(signal, snr));
     }
     
     /// 给信号加上高斯白噪声

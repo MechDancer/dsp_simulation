@@ -48,12 +48,13 @@ namespace mechdancer {
         for (auto p = A.begin(), q = B.begin(); p < A.end(); ++p, ++q) *p *= *q;
         ifft(A);
         
+        size = a.values.size() + b.values.size() - 1;
         _signal_t result{
             .values = std::vector<value_t>(size),
             .sampling_frequency = a.sampling_frequency,
             .begin_time = a.begin_time + b.begin_time,
         };
-        std::transform(A.begin(), A.end(), result.values.begin(), [](auto z) { return z.re; });
+        std::transform(A.begin(), A.begin() + size, result.values.begin(), [](auto z) { return z.re; });
         return result;
     }
     
@@ -76,15 +77,15 @@ namespace mechdancer {
         return r.conjugate() * s / s.norm();
     }
     
-//    template<RealSignal _signal_t>
-//    auto correlation_init(_signal_t const &ref, size_t size = 0) {
-//        using value_t = typename _signal_t::value_t;
-//        using complex_t = std::complex<value_t>;
-//        using spectrum_t = std::vector<complex_t>;
-//
-//        size = enlarge_to_2_power(std::max(ref.values.size(), size));
-//
-//    }
+    //    template<RealSignal _signal_t>
+    //    auto correlation_init(_signal_t const &ref, size_t size = 0) {
+    //        using value_t = typename _signal_t::value_t;
+    //        using complex_t = std::complex<value_t>;
+    //        using spectrum_t = std::vector<complex_t>;
+    //
+    //        size = enlarge_to_2_power(std::max(ref.values.size(), size));
+    //
+    //    }
     
     /// 频域互相关
     /// \tparam _signal_t 信号类型
@@ -229,11 +230,11 @@ namespace mechdancer {
     /// \param signal 原信号
     /// \return 希尔伯特谱
     template<RealSignal _signal_t,
-        class _value_t = typename _signal_t::value_t,
-        class new_signal_t = signal_t<
-            complex_t<_value_t>,
-            typename _signal_t::frequency_t,
-            typename _signal_t::time_t>>
+             class _value_t = typename _signal_t::value_t,
+             class new_signal_t = signal_t<
+                 complex_t<_value_t>,
+                 typename _signal_t::frequency_t,
+                 typename _signal_t::time_t>>
     new_signal_t hilbert(_signal_t const &signal) {
         auto size = enlarge_to_2_power(signal.values.size());
         auto result = std::vector<complex_t<_value_t>>(size, complex_t<_value_t>::zero);
