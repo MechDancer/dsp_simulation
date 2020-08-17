@@ -5,11 +5,8 @@
 #ifndef DSP_SIMULATION_FREQUENCY_T_HPP
 #define DSP_SIMULATION_FREQUENCY_T_HPP
 
-#include <ratio>
 #include <cmath>
 #include <chrono>
-
-#include "concepts.h"
 
 namespace mechdancer {
     /// ∆µ¬ ¿‡–Õ

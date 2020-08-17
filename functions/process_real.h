@@ -31,18 +31,17 @@ namespace mechdancer {
     template<RealSignal _signal_t>
     _signal_t convolution(_signal_t const &a, _signal_t const &b, size_t size = 0) {
         using value_t = typename _signal_t::value_t;
-        using complex_t = std::complex<value_t>;
-        using spectrum_t = std::vector<complex_t>;
+        using spectrum_t = std::vector<complex_t<value_t>>;
         
         if (a.sampling_frequency != b.sampling_frequency)
             throw std::invalid_argument("the two signals should be with same sampling_frequency");
         
         size = enlarge_to_2_power(std::max(a.values.size() + b.values.size() - 1, size));
-        auto A = spectrum_t(size, complex_t{}),
-            B = spectrum_t(size, complex_t{});
+        auto A = spectrum_t(size, complex_t<value_t>::zero),
+            B = spectrum_t(size, complex_t<value_t>::zero);
         
-        std::transform(a.values.begin(), a.values.end(), A.begin(), [](value_t x) { return complex_t{x, 0}; });
-        std::transform(b.values.begin(), b.values.end(), B.begin(), [](value_t x) { return complex_t{x, 0}; });
+        std::transform(a.values.begin(), a.values.end(), A.begin(), [](value_t x) { return complex_t<value_t>{x, 0}; });
+        std::transform(b.values.begin(), b.values.end(), B.begin(), [](value_t x) { return complex_t<value_t>{x, 0}; });
         
         fft(A);
         fft(B);
@@ -54,27 +53,27 @@ namespace mechdancer {
             .sampling_frequency = a.sampling_frequency,
             .begin_time = a.begin_time + b.begin_time,
         };
-        std::transform(A.begin(), A.end(), result.values.begin(), [](complex_t z) { return z.real(); });
+        std::transform(A.begin(), A.end(), result.values.begin(), [](auto z) { return z.re; });
         return result;
     }
     
     /// 互相关模式
     enum class correlation_mode { basic, phat, noise_reduction };
     
-    template<Number t, class complex_t = std::complex<t>>
-    static complex_t correlation_basic(complex_t r, complex_t s) {
-        return std::conj(r) * s;
+    template<Number t>
+    static complex_t<t> correlation_basic(complex_t<t> r, complex_t<t> s) {
+        return r.conjugate() * s;
     }
     
-    template<Number t, class complex_t = std::complex<t>>
-    static complex_t correlation_phat(complex_t r, complex_t s) {
-        auto product = std::conj(r) * s;
-        return product / std::abs(product);
+    template<Number t>
+    static auto correlation_phat(complex_t<t> r, complex_t<t> s) {
+        auto product = r.conjugate() * s;
+        return product / product.norm();
     }
     
-    template<Number t, class complex_t = std::complex<t>>
-    static complex_t correlation_noise_reduction(complex_t r, complex_t s) {
-        return std::conj(r) * s / std::abs(s);
+    template<Number t>
+    static auto correlation_noise_reduction(complex_t<t> r, complex_t<t> s) {
+        return r.conjugate() * s / s.norm();
     }
     
 //    template<RealSignal _signal_t>
@@ -96,8 +95,8 @@ namespace mechdancer {
     template<correlation_mode mode = correlation_mode::basic, RealSignal _signal_t>
     _signal_t correlation(_signal_t const &ref, _signal_t const &signal, size_t size = 0) {
         using value_t = typename _signal_t::value_t;
-        using complex_t = std::complex<value_t>;
-        using spectrum_t = std::vector<complex_t>;
+        using complex = complex_t<value_t>;
+        using spectrum_t = std::vector<complex>;
         
         constexpr static auto
             fun = mode == correlation_mode::basic
@@ -110,18 +109,18 @@ namespace mechdancer {
             throw std::invalid_argument("the two signals should be with same sampling_frequency");
         
         size = enlarge_to_2_power(std::max(ref.values.size() + signal.values.size() - 1, size));
-        auto R = spectrum_t(size, complex_t{}),
-            S = spectrum_t(size, complex_t{});
+        auto R = spectrum_t(size, complex::zero),
+            S = spectrum_t(size, complex::zero);
         
-        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](value_t x) { return complex_t{x, 0}; });
-        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](value_t x) { return complex_t{x, 0}; });
+        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](value_t x) { return complex{x, 0}; });
+        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](value_t x) { return complex{x, 0}; });
         
         fft(R);
         fft(S);
         for (auto p = S.begin(), q = R.begin(); p < S.end(); ++p, ++q)
-            if (*q == complex_t{})
-                *p = complex_t{};
-            else if (*p != complex_t{})
+            if (q->is_zero())
+                *p = complex::zero;
+            else if (!p->is_zero())
                 *p = fun(*q, *p);
         ifft(S);
         
@@ -135,8 +134,8 @@ namespace mechdancer {
             .begin_time = duration_cast<typename _signal_t::time_t>(
                 1s / ref.sampling_frequency.template cast_to<Hz_t>().value - ref.begin_time),
         };
-        std::transform(S.end() - lr + 1, S.end(), result.values.begin(), [](complex_t z) { return z.real(); });
-        std::transform(S.begin(), S.begin() + ls, result.values.begin() + lr - 1, [](complex_t z) { return z.real(); });
+        std::transform(S.end() - lr + 1, S.end(), result.values.begin(), [](complex z) { return z.re; });
+        std::transform(S.begin(), S.begin() + ls, result.values.begin() + lr - 1, [](complex z) { return z.re; });
         return result;
     }
     
@@ -149,7 +148,6 @@ namespace mechdancer {
     template<RealSignal _signal_t, Frequency new_frequency_t, Number times_t>
     auto resample(_signal_t const &signal, new_frequency_t new_fs, times_t _times) {
         using value_t = typename _signal_t::value_t;
-        using complex_t = std::complex<value_t>;
         using data_t = std::vector<value_t>;
         using new_signal_t = signal_t<value_t, new_frequency_t, typename _signal_t::time_t>;
         
@@ -171,14 +169,14 @@ namespace mechdancer {
         // 按是否进行升采样分类
         if (times > 1) {
             // 基于 FFT 升采样
-            auto spectrum = std::vector<complex_t>(values.size());
-            std::transform(values.begin(), values.end(), spectrum.begin(), [](value_t x) { return complex_t{x, 0}; });
+            auto spectrum = std::vector<complex_t<value_t>>(values.size());
+            std::transform(values.begin(), values.end(), spectrum.begin(), [](value_t x) { return complex_t<value_t>{x, 0}; });
             
             fft(spectrum);
             auto size = spectrum.size();
-            spectrum.resize(size * times, complex_t{});
+            spectrum.resize(size * times, complex_t<value_t>::zero);
             std::copy_n(spectrum.begin() + size / 2, size / 2, spectrum.end() - size / 2);
-            std::fill(spectrum.begin() + size / 2, spectrum.end() - size, complex_t{});
+            std::fill(spectrum.begin() + size / 2, spectrum.end() - size, complex_t<value_t>::zero);
             ifft(spectrum);
             // 再降采样到目标采样率
             new_signal_t result{
@@ -190,14 +188,14 @@ namespace mechdancer {
                 .begin_time =signal.begin_time,
             };
             if (interval == 1u)
-                std::transform(spectrum.begin(), spectrum.end(), result.values.begin(), [](complex_t z) { return z.real(); });
+                std::transform(spectrum.begin(), spectrum.end(), result.values.begin(), [](complex_t<value_t> z) { return z.re; });
             else {
                 auto p = spectrum.begin();
                 auto q = result.values.begin();
-                *q++ = p->real();
+                *q++ = p->re;
                 while (q != result.values.end()) {
                     p += interval;
-                    *q++ = p->real();
+                    *q++ = p->re;
                 }
             }
             return result;
@@ -232,33 +230,32 @@ namespace mechdancer {
     /// \return 希尔伯特谱
     template<RealSignal _signal_t,
         class _value_t = typename _signal_t::value_t,
-        class complex_t = std::complex<_value_t>,
         class new_signal_t = signal_t<
-            complex_t,
+            complex_t<_value_t>,
             typename _signal_t::frequency_t,
             typename _signal_t::time_t>>
     new_signal_t hilbert(_signal_t const &signal) {
         auto size = enlarge_to_2_power(signal.values.size());
-        auto result = std::vector<complex_t>(size, complex_t{});
+        auto result = std::vector<complex_t<_value_t>>(size, complex_t<_value_t>::zero);
         std::transform(signal.values.begin(), signal.values.end(), result.begin(),
-                       [](_value_t x) { return complex_t{x, 0}; });
+                       [](_value_t x) { return complex_t<_value_t>{x, 0}; });
         // 生成超前 90° 的信号（虚部）
         fft(result);
         {
             auto p = result.begin();
             ++p; // 避开 0 频率点，前一半，正频率部分，超前 90°
             while (p < result.begin() + size / 2)
-                *p++ = {p->imag(), -p->real()};
+                *p++ = {p->im, -p->re};
             ++p; // 避开 0 频率点，后一半，负频率部分，滞后 90°
             while (p < result.end())
-                *p++ = {-p->imag(), p->real()};
+                *p++ = {-p->im, p->re};
         }
         ifft(result);
         // 与原信号合并为复信号
         result.resize(signal.values.size());
         auto p = signal.values.begin();
         auto q = result.begin();
-        while (p < signal.values.end()) *q++ = {*p++, q->real()};
+        while (p < signal.values.end()) *q++ = {*p++, q->re};
         return new_signal_t{
             .values = result,
             .sampling_frequency = signal.sampling_frequency,

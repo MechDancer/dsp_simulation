@@ -5,8 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(dsp_simulation main.cpp
         types/concepts.h
-        types/noise.h
+        types/complex_t.hpp
         types/frequency_t.hpp
+        types/noise.h
         types/signal_t.hpp
 
         functions/builders.h

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <filesystem>
+#include <sstream>
 
 #include "functions/builders.h"
 #include "functions/process_real.h"
@@ -18,30 +19,30 @@ int main() {
     // endregion
     constexpr static auto PATH = "../data";  // 数据保存路径
     constexpr static auto MAIN_FS = 1_MHz;   // 仿真采样率（取决于测量脉冲响应的采样率）
-    constexpr static auto DISTANCE = 4;      // 实际距离（米）
+    constexpr static auto DISTANCE = 3;      // 实际距离（米）
     constexpr static auto TEMPERATURE = 20;  // 气温（℃）
     constexpr static auto FRAME_SIZE = 1024; // 帧长度
     // region 信源信道仿真
     // 收发系统
     auto transceiver0 = load("../2048_1M_0.txt", MAIN_FS, 0s);
-    auto transceiver1 = load("../2048_1M_1.txt", MAIN_FS, 0s);
+//    auto transceiver1 = load("../2048_1M_1.txt", MAIN_FS, 0s);
     // 激励信号（加噪）
     auto excitation_pure = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
     SAVE_SIGNAL_AUTO({ PATH }, excitation_pure)
     auto excitation = excitation_pure;
-    add_noise_measured(excitation, 0_db);
+//    add_noise_measured(excitation, 0_db);
     SAVE_SIGNAL_AUTO({ PATH }, excitation)
     // 参考接收
     auto reference0 = convolution(transceiver0, excitation);
-    auto reference1 = convolution(transceiver1, excitation);
+//    auto reference1 = convolution(transceiver1, excitation);
     SAVE_SIGNAL_AUTO({ PATH }, reference0)
-    SAVE_SIGNAL_AUTO({ PATH }, reference1)
+//    SAVE_SIGNAL_AUTO({ PATH }, reference1)
     // 加噪
     auto DELAY = floating_seconds(DISTANCE / (20.048 * std::sqrt(TEMPERATURE + 273.15)));
     auto received = real_signal_of(reference0.values.size(), reference0.sampling_frequency, DELAY);
     std::copy(reference0.values.begin(), reference0.values.end(), received.values.begin());
     auto delay_received = sum(real_signal_of(30000, MAIN_FS, 0s), received);
-    add_noise(delay_received, sigma_noise(received, -5_db));
+//    add_noise(delay_received, sigma_noise(received, -5_db));
     SAVE_SIGNAL_AUTO({ PATH }, delay_received)
     // endregion
     // region 接收机仿真
@@ -77,12 +78,12 @@ int main() {
     // region 算法仿真
     std::ofstream file("../data/spectrum.txt");
     auto buffer = real_signal_of(768, 150_kHz, 0s);
-    auto reference150kHz = resample(reference1, 150_kHz, 4);
+    auto reference150kHz = resample(reference0, 150_kHz, 4);
     reference150kHz.values.erase(reference150kHz.values.begin() + 256, reference150kHz.values.end());
     for (auto const &frame : frames) {
         constexpr static auto threshold = 1.6;
         // 降采样
-        auto spectrum = fft<float>(frame);
+        auto spectrum = fft<double>(frame);
         spectrum.values.erase(spectrum.values.begin() + FRAME_SIZE / 8, spectrum.values.end() - FRAME_SIZE / 8);
         spectrum.sampling_frequency = 150_kHz;
         // 带通滤波

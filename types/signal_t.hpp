@@ -7,12 +7,27 @@
 
 #include <chrono>
 #include <vector>
-#include <complex>
 
 #include "concepts.h"
-#include "../functions/fft.h"
+#include "complex_t.hpp"
 
 namespace mechdancer {
+    template<class t>
+    concept Signal = requires(t signal){
+        typename t::value_t;
+        typename t::frequency_t;
+        typename t::time_t;
+        signal.values;
+        signal.sampling_frequency;
+        signal.begin_time;
+    };
+    
+    template<class t>
+    concept RealSignal = Signal<t> && Number<typename t::value_t>;
+    
+    template<class t>
+    concept ComplexSignal = Signal<t> && std::same_as<typename t::value_t, complex_t<typename t::value_t::value_t>>;
+    
     /// 信号类型
     /// \tparam _value_t 数据类型
     /// \tparam _frequency_t 频率类型（frequency_t）
@@ -55,7 +70,7 @@ namespace mechdancer {
     /// \return 复信号对象
     template<class _value_t = float, Frequency frequency_t, Time time_t>
     auto complex_signal_of(size_t size, frequency_t frequency, time_t time) {
-        return real_signal_of<std::complex<_value_t>>(size, frequency, time);
+        return real_signal_of<complex_t<_value_t>>(size, frequency, time);
     }
     
     /// 实信号作为实部生成复信号
@@ -68,7 +83,7 @@ namespace mechdancer {
         
         auto result = complex_signal_of<value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
         std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
-                       [](value_t x) { return std::complex<value_t>{x, 0}; });
+                       [](value_t x) { return complex_t<value_t>{x, 0}; });
         return result;
     }
     
@@ -77,11 +92,11 @@ namespace mechdancer {
     /// \tparam t 信号类型
     /// \param signal 复信号
     /// \return 复信号实部组成的实信号
-    template<ComplexSignal t, class _value_t = typename t::value_t::value_type>
+    template<ComplexSignal t>
     auto real(t const &signal) {
-        auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
-        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
-                       [](std::complex<_value_t> z) { return z.real(); });
+        using value_t = typename t::value_t::value_t;
+        auto result = real_signal_of<value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
+        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(), [](auto z) { return z.re; });
         return result;
     }
     
@@ -94,7 +109,7 @@ namespace mechdancer {
     auto abs(t const &signal) {
         auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
         std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
-                       [](std::complex<_value_t> z) { return std::abs(z); });
+                       [](auto z) { return z.norm(); });
         return result;
     }
 }

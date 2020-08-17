@@ -23,16 +23,16 @@ namespace mechdancer {
     auto fft(t const &signal, size_t size = 0) {
         using frequency_t = typename t::frequency_t;
         using time_t = typename t::time_t;
-        using result_t = signal_t<std::complex<target_t>, frequency_t, time_t>;
+        using result_t = signal_t <complex_t<target_t>, frequency_t, time_t>;
         
         size = enlarge_to_2_power(std::max(signal.values.size(), size));
         auto result = result_t{
-            .values = std::vector<std::complex<target_t>>(size),
+            .values = std::vector<complex_t<target_t>>(size),
             .sampling_frequency = signal.sampling_frequency,
             .begin_time = signal.begin_time,
         };
         std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
-                       [](auto x) { return std::complex<target_t>{static_cast<target_t>(x), 0}; });
+                       [](auto x) { return complex_t<target_t>{static_cast<target_t>(x), 0}; });
         fft(result.values);
         return result;
     }

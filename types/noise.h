@@ -10,7 +10,7 @@
 #include <numeric>
 #include <random>
 
-#include "concepts.h"
+#include "signal_t.hpp"
 
 namespace mechdancer {
     template<class t = float>
