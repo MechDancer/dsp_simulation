@@ -30,7 +30,7 @@ int main() {
     // 激励信号（加噪）
     auto excitation_pure = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
     auto excitation = excitation_pure;
-    //    add_noise_measured(excitation, 0);
+    add_noise_measured(excitation, 20_db);
     // 参考接收
     auto reference0 = convolution(transceiver0, excitation);
     auto reference1 = convolution(transceiver1, excitation);
@@ -38,7 +38,7 @@ int main() {
     auto DELAY = static_cast<size_t>(std::lround(DISTANCE * MAIN_FS.cast_to<Hz_t>().value / (20.048 * std::sqrt(TEMPERATURE + 273.15))));
     auto received = real_signal_of(DELAY + 3 * reference0.values.size(), reference0.sampling_frequency, 0s);
     std::copy(reference0.values.begin(), reference0.values.end(), received.values.begin() + DELAY);
-    //    add_noise(delay_received, sigma_noise(received, 0));
+    add_noise(received, sigma_noise(received, -3_db));
     // endregion
     // region 接收机仿真
     // 降低采样率重采样，模拟低采样率的嵌入式处理器
@@ -48,14 +48,7 @@ int main() {
     auto sampling = real_signal_of<sample_t>(sampling_float.values.size(), sampling_float.sampling_frequency, sampling_float.begin_time);
     std::transform(sampling_float.values.begin(), sampling_float.values.end(), sampling.values.begin(),
                    [](auto x) { return static_cast<sample_t>(x / 15 + 1600); });
-    { // 测试互相关算法
-        auto reff = resample(reference0, 600_kHz, 64);
-        auto corr = correlation(reff, sampling_float);
-        std::cout << "互相关峰位置 = " << DELAY * .6 + reff.values.size() - 1 << std::endl;
-        SAVE_SIGNAL_AUTO({ PATH }, reff)
-        SAVE_SIGNAL_AUTO({ PATH }, sampling)
-        SAVE_SIGNAL_AUTO({ PATH }, corr)
-    }
+    SAVE_SIGNAL_AUTO({ PATH }, sampling)
     // 重叠分帧，模拟内存不足的嵌入式系统
     auto frames = std::vector<decltype(sampling)>();
     {
@@ -78,7 +71,7 @@ int main() {
     }
     // endregion
     // region 算法仿真
-    std::ofstream file("../data/spectrum.txt");
+    std::ofstream file("../data/correlation.txt");
     auto buffer = real_signal_of(768, 150_kHz, 0s);
     auto reference150kHz = resample(reference0, 150_kHz, 4);
     reference150kHz.values.erase(reference150kHz.values.begin() + 256, reference150kHz.values.end());
@@ -97,7 +90,7 @@ int main() {
         std::move(buffer.values.begin() + 256, buffer.values.end(), buffer.values.begin());
         std::copy(part.values.begin(), part.values.end(), buffer.values.begin() + 512);
         // 计算互相关
-        auto temp = correlation<correlation_mode::basic>(reference150kHz, buffer);
+        auto temp = correlation<correlation_mode::noise_reduction>(reference150kHz, buffer);
         for (auto value : temp.values) file << value << '\t';
         file << std::endl;
     }
