@@ -9,20 +9,28 @@
 #include "functions/process_complex.h"
 #include "types/noise.h"
 
+using namespace mechdancer;
+
+template<class t> requires Number<t>
+constexpr auto sound_speed(t temperature) {
+    return 20.048 * std::sqrt(temperature + 273.15);
+}
+
 int main() {
     // region 准备环境
-    using namespace mechdancer;
     using namespace std::chrono;
     using namespace std::chrono_literals;
     
     std::filesystem::remove_all("../data");
     std::filesystem::create_directory("../data");
     // endregion
+    // region 参数
     constexpr static auto PATH = "../data";  // 数据保存路径
     constexpr static auto MAIN_FS = 1_MHz;   // 仿真采样率（取决于测量脉冲响应的采样率）
     constexpr static auto DISTANCE = 3;      // 实际距离（米）
     constexpr static auto TEMPERATURE = 20;  // 气温（℃）
     constexpr static auto FRAME_SIZE = 1024; // 帧长度
+    // endregion
     // region 信源信道仿真
     // 收发系统
     auto transceiver0 = load("../2048_1M_0.txt", MAIN_FS, 0s);
@@ -34,10 +42,10 @@ int main() {
     auto reference0 = convolution(transceiver0, excitation); // 构造接收信号
     auto reference1 = convolution(transceiver1, excitation); // 构造参考信号
     // 加噪
-    auto DELAY = static_cast<size_t>(std::lround(DISTANCE * MAIN_FS.cast_to<Hz_t>().value / (20.048 * std::sqrt(TEMPERATURE + 273.15))));
+    auto DELAY = static_cast<size_t>(std::lround(DISTANCE * MAIN_FS.cast_to<Hz_t>().value / sound_speed(TEMPERATURE)));
     auto received = real_signal_of(DELAY + 3 * reference0.values.size(), reference0.sampling_frequency, 0s);
     std::copy(reference0.values.begin(), reference0.values.end(), received.values.begin() + DELAY);
-    add_noise(received, sigma_noise(received, -20_db));
+    add_noise(received, sigma_noise(received, -12_db));
     // endregion
     // region 接收机仿真
     // 降低采样率重采样，模拟低采样率的嵌入式处理器
@@ -50,8 +58,8 @@ int main() {
     SAVE_SIGNAL_AUTO({ PATH }, sampling)
     { // 测试互相关
         auto reff = resample(reference0, 600_kHz, 64);
-        auto corr = correlation(reff, sampling_float);
-        std::cout << "延迟点数 = " << DELAY * .6 + reff.values.size() - 1 << std::endl;
+        auto corr = correlation<correlation_mode::noise_reduction>(reff, sampling_float);
+        std::cout << "延迟点数 = " << DELAY * .6 << std::endl;
         SAVE_SIGNAL_AUTO({ PATH }, reff)
         SAVE_SIGNAL_AUTO({ PATH }, corr)
     }
@@ -77,29 +85,42 @@ int main() {
     }
     // endregion
     // region 算法仿真
-    std::ofstream file("../data/correlation.txt");
     auto buffer = real_signal_of<int>(768, 150_kHz, 0s);
     auto reference150kHz = resample(reference1, 150_kHz, 4);
-    reference150kHz.values.erase(reference150kHz.values.begin() + 256, reference150kHz.values.end());
-    for (auto const &frame : frames) {
+    reference150kHz.values.erase(reference150kHz.values.begin() + 257, reference150kHz.values.end());
+    auto result = std::vector<common_type<decltype(buffer), decltype(reference150kHz)>>();
+    for (auto i = 0; i < frames.size(); ++i) {
+        const auto &frame = frames[i];
         // 降采样
         auto spectrum = fft<typename decltype(buffer)::value_t>(frame);
         auto middle = spectrum.values[spectrum.values.size() / 2];
         spectrum.values.erase(spectrum.values.begin() + FRAME_SIZE / 8, spectrum.values.end() - FRAME_SIZE / 8);
         spectrum.values[spectrum.values.size() / 2] = middle;
         spectrum.sampling_frequency = 150_kHz;
-        // 带通滤波
+        // 带通滤波 根本没必要带通滤波，通带之外本来就没有响应，滤狠了反为不美
         // bandpass(spectrum, 30_kHz, 70_kHz);
         ifft(spectrum.values);
         auto part = real(spectrum);
         // 保存为叠帧
         std::move(buffer.values.begin() + 256, buffer.values.end(), buffer.values.begin());
         std::copy(part.values.begin(), part.values.end(), buffer.values.begin() + 512);
+        if (i % 2 || i < 2) continue;
         // 计算互相关
-        auto temp = correlation<correlation_mode::noise_reduction>(reference150kHz, buffer);
-        for (auto value : temp.values) file << value << '\t';
-        file << std::endl;
+        auto corr = correlation<correlation_mode::noise_reduction>(reference150kHz, buffer);
+        result.push_back(corr);
     }
+    // endregion
+    // region 生成结论
+    auto sum = real_signal_of(512 * (result.size() + 1), 150_kHz, 0s);
+    for (auto i = 0; i < result.size(); ++i)
+        for (auto j = 0; j < result[i].values.size(); ++j)
+            sum.values[i * 512 + j] += result[i].values[j];
+    SAVE_SIGNAL_AUTO({ PATH }, sum)
+    auto max_i = 0;
+    for (auto i = 1; i < sum.values.size(); ++i)
+        if (sum.values[i] > sum.values[max_i])
+            max_i = i;
+    std::cout << "估计点数 = " << (max_i - 256) * 4 << std::endl;
     // endregion
     return 0;
 }
