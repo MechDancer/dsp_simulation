@@ -8,6 +8,8 @@
 #include <cmath>
 #include <chrono>
 
+#include "concepts.h"
+
 namespace mechdancer {
     /// 频率类型
     /// \tparam _value_t 内部字段类型
@@ -35,6 +37,24 @@ namespace mechdancer {
         t duration_of(size_t n) const {
             constexpr static double k = static_cast<double>(ratio::num) / (ratio::den);
             return std::chrono::duration_cast<t>(floating_seconds(n / k / value));
+        }
+        
+        template<class t>
+        frequency_t operator*(t n) const { return {value * n}; }
+        
+        template<class t>
+        frequency_t operator/(t n) const { return {value / n}; }
+        
+        template<class t>
+        frequency_t &operator*=(t n) {
+            value *= n;
+            return *this;
+        }
+        
+        template<class t>
+        frequency_t &operator/=(t n) {
+            value /= n;
+            return *this;
         }
         
         auto operator<=>(frequency_t const &others) const = default;

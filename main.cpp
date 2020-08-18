@@ -30,8 +30,9 @@ int main() {
     // 激励信号（加噪）
     auto excitation = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
     // 参考接收
-    auto reference0 = convolution(transceiver0, excitation);
-    auto reference1 = convolution(transceiver1, excitation);
+    add_noise_measured(transceiver0, -3_db);
+    auto reference0 = convolution(transceiver0, excitation); // 构造接收信号
+    auto reference1 = convolution(transceiver1, excitation); // 构造参考信号
     // 加噪
     auto DELAY = static_cast<size_t>(std::lround(DISTANCE * MAIN_FS.cast_to<Hz_t>().value / (20.048 * std::sqrt(TEMPERATURE + 273.15))));
     auto received = real_signal_of(DELAY + 3 * reference0.values.size(), reference0.sampling_frequency, 0s);
@@ -47,6 +48,13 @@ int main() {
     std::transform(sampling_float.values.begin(), sampling_float.values.end(), sampling.values.begin(),
                    [](auto x) { return static_cast<sample_t>(x / 15 + 1600); });
     SAVE_SIGNAL_AUTO({ PATH }, sampling)
+    { // 测试互相关
+        auto reff = resample(reference0, 600_kHz, 64);
+        auto corr = correlation(reff, sampling_float);
+        std::cout << "延迟点数 = " << DELAY * .6 + reff.values.size() - 1 << std::endl;
+        SAVE_SIGNAL_AUTO({ PATH }, reff)
+        SAVE_SIGNAL_AUTO({ PATH }, corr)
+    }
     // 重叠分帧，模拟内存不足的嵌入式系统
     auto frames = std::vector<decltype(sampling)>();
     {
@@ -70,18 +78,18 @@ int main() {
     // endregion
     // region 算法仿真
     std::ofstream file("../data/correlation.txt");
-    auto buffer = real_signal_of(768, 150_kHz, 0s);
-    auto reference150kHz = resample(reference0, 150_kHz, 4);
+    auto buffer = real_signal_of<int>(768, 150_kHz, 0s);
+    auto reference150kHz = resample(reference1, 150_kHz, 4);
     reference150kHz.values.erase(reference150kHz.values.begin() + 256, reference150kHz.values.end());
     for (auto const &frame : frames) {
-        constexpr static auto threshold = 1.6;
         // 降采样
-        auto spectrum = fft<float>(frame);
-        spectrum.values.erase(spectrum.values.begin() + FRAME_SIZE / 8, spectrum.values.begin() + FRAME_SIZE / 2);
-        spectrum.values.erase(spectrum.values.begin() + FRAME_SIZE / 8 + 1, spectrum.values.end() - FRAME_SIZE / 8 + 1);
+        auto spectrum = fft<typename decltype(buffer)::value_t>(frame);
+        auto middle = spectrum.values[spectrum.values.size() / 2];
+        spectrum.values.erase(spectrum.values.begin() + FRAME_SIZE / 8, spectrum.values.end() - FRAME_SIZE / 8);
+        spectrum.values[spectrum.values.size() / 2] = middle;
         spectrum.sampling_frequency = 150_kHz;
         // 带通滤波
-        bandpass(spectrum, 30_kHz, 70_kHz);
+        // bandpass(spectrum, 30_kHz, 70_kHz);
         ifft(spectrum.values);
         auto part = real(spectrum);
         // 保存为叠帧

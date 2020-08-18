@@ -7,21 +7,31 @@
 
 #include <cmath>
 #include <vector>
+#include <limits>
 
 #include "../types/concepts.h"
 #include "functions.h"
 
 namespace mechdancer {
+    template<Integer t>
+    constexpr t omega_times = std::numeric_limits<t>::max() >> (sizeof(t) * 4);
+    
     /// 用于正变换的 Ω_n^k
     /// \tparam t 复数值数据类型
     /// \param k k
     /// \param n n
     /// \return Ω_n^k
-    template<Number t = float>
+    template<Number t>
     static complex_t<t> omega(unsigned k, unsigned n) {
-        double theta = 2 * PI * k / n;
-        return {static_cast<t>(std::cos(theta)),
-                static_cast<t>(std::sin(theta))};
+        if constexpr (std::is_integral_v<t>) {
+            auto theta = 2 * PI * k / n;
+            return {static_cast<t>(omega_times<t> * std::cos(theta)),
+                    static_cast<t>(omega_times<t> * std::sin(theta))};
+        } else {
+            t theta = 2 * PI * k / n;
+            return {static_cast<t>(std::cos(theta)),
+                    static_cast<t>(std::sin(theta))};
+        }
     }
     
     /// 用于反变换的 Ω_n^k
@@ -29,11 +39,9 @@ namespace mechdancer {
     /// \param k k
     /// \param n n
     /// \return Ω_n^k
-    template<Number t = float>
+    template<Number t>
     static complex_t<t> i_omega(unsigned k, unsigned n) {
-        double theta = 2 * PI * k / n;
-        return {static_cast<t>(std::cos(theta)),
-                -static_cast<t>(std::sin(theta))};
+        return omega<t>(k, n).conjugate();
     }
     
     /// fft 操作
@@ -58,14 +66,18 @@ namespace mechdancer {
         }
         // 变换
         for (size_t m = 1; m < n; m <<= 1u) {
-            auto        a = memory.data(), b = a + m;
-            const auto  s = n / m / 2;
+            auto a = memory.data(), b = a + m;
+            const auto s = n / m / 2;
             for (size_t i = 0; i < s; ++i) {
                 for (size_t j = 0; j < m; ++j, ++a, ++b)
                     if (b->re == 0 && b->im == 0)
                         *b = *a;
                     else {
-                        const auto c = *b * Ω(s * j, n);
+                        complex_t<t> c;
+                        if constexpr (std::is_integral_v<t>)
+                            c = *b * Ω(s * j, n) / omega_times<t>;
+                        else
+                            c = *b * Ω(s * j, n);
                         *b = *a - c;
                         *a += c;
                     }
