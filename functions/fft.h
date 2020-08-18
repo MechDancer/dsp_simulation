@@ -12,8 +12,6 @@
 #include "functions.h"
 
 namespace mechdancer {
-    constexpr static auto PI = 3.1415926535897932384626433832795;
-    
     /// 用于正变换的 Ω_n^k
     /// \tparam t 复数值数据类型
     /// \param k k

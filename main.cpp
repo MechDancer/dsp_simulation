@@ -28,9 +28,7 @@ int main() {
     auto transceiver0 = load("../2048_1M_0.txt", MAIN_FS, 0s);
     auto transceiver1 = load("../2048_1M_1.txt", MAIN_FS, 0s);
     // 激励信号（加噪）
-    auto excitation_pure = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
-    auto excitation = excitation_pure;
-    add_noise_measured(excitation, 20_db);
+    auto excitation = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
     // 参考接收
     auto reference0 = convolution(transceiver0, excitation);
     auto reference1 = convolution(transceiver1, excitation);
@@ -38,7 +36,7 @@ int main() {
     auto DELAY = static_cast<size_t>(std::lround(DISTANCE * MAIN_FS.cast_to<Hz_t>().value / (20.048 * std::sqrt(TEMPERATURE + 273.15))));
     auto received = real_signal_of(DELAY + 3 * reference0.values.size(), reference0.sampling_frequency, 0s);
     std::copy(reference0.values.begin(), reference0.values.end(), received.values.begin() + DELAY);
-    add_noise(received, sigma_noise(received, -3_db));
+    add_noise(received, sigma_noise(received, -20_db));
     // endregion
     // region 接收机仿真
     // 降低采样率重采样，模拟低采样率的嵌入式处理器

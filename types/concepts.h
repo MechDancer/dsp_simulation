@@ -8,6 +8,7 @@
 #include "frequency_t.hpp"
 
 namespace mechdancer {
+    constexpr static auto PI = 3.1415926535897932384626433832795;
     using floating_seconds = std::chrono::duration<float>;
     
     template<class t>
