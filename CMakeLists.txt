@@ -13,4 +13,8 @@ add_executable(dsp_simulation main.cpp
         functions/builders.h
         functions/functions.h
         functions/fft.h
-        functions/process_real.h functions/process_complex.h)
+        functions/process_real.h
+        functions/process_complex.h
+
+        functions/script_builder.cc
+        functions/script_builder.hh)

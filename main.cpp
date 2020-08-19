@@ -8,6 +8,7 @@
 #include "functions/process_real.h"
 #include "functions/process_complex.h"
 #include "types/noise.h"
+#include "functions/script_builder.hh"
 
 using namespace mechdancer;
 
@@ -27,9 +28,7 @@ int main() {
     // region 准备环境
     using namespace std::chrono;
     using namespace std::chrono_literals;
-    
-    std::filesystem::remove_all("../data");
-    std::filesystem::create_directory("../data");
+    script_builder_t script_builder("data");
     // endregion
     // region 参数
     constexpr static auto MAIN_FS = 1_MHz;  // 仿真采样率（取决于测量脉冲响应的采样率）
@@ -56,16 +55,17 @@ int main() {
     auto sampling = real_signal_of<sample_t>(sampling_float.values.size(), sampling_float.sampling_frequency, sampling_float.begin_time);
     std::transform(sampling_float.values.begin(), sampling_float.values.end(), sampling.values.begin(),
                    [](auto x) { return static_cast<sample_t>(x / 15 + 1600); });
-    SAVE_SIGNAL_AUTO({ PATH }, sampling)
+    SAVE_SIGNAL_AUTO(script_builder, sampling);
     std::cout << "延迟点数 = " << DELAY * .6 << std::endl;
     { // 测试直接使用各种方法
-        auto temp = resample(reference, sampling.sampling_frequency, 64);
+        auto temp = resample(reference, sampling_float.sampling_frequency, 64);
         // 互相关
-        auto test1 = correlation(temp, sampling_float);
+        auto test1 = correlation<correlation_mode::noise_reduction>(temp, sampling_float);
+        test1.values.erase(test1.values.begin(), test1.values.begin() + temp.values.size() - 1);
         // 倒谱
-        auto test2 = rceps(sampling + temp) - rceps(sampling - temp);
-        SAVE_SIGNAL_AUTO({ PATH }, test1)
-        SAVE_SIGNAL_AUTO({ PATH }, test2)
+        auto test2 = rceps(sampling_float + temp) - rceps(sampling_float - temp);
+        SAVE_SIGNAL_AUTO(script_builder, test1);
+        SAVE_SIGNAL_AUTO(script_builder, test2);
     }
     // endregion
     return 0;
@@ -124,7 +124,6 @@ template<class t, class u> requires RealSignal<t> && RealSignal<u>
     for (auto i = 0; i < result.size(); ++i)
         for (auto j = 0; j < result[i].values.size(); ++j)
             sum.values[i * 512 + j] += result[i].values[j];
-    SAVE_SIGNAL_AUTO({ PATH }, sum)
     auto max_i = 0;
     for (auto i = 1; i < sum.values.size(); ++i)
         if (sum.values[i] > sum.values[max_i])

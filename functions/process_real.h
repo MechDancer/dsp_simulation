@@ -256,7 +256,7 @@ namespace mechdancer {
         fft(spectrum);
         for (auto &z : spectrum)
             if (!z.is_zero())
-                z = {std::log(z.norm()), 0};
+                z = {static_cast<value_t>(std::log(z.norm())), 0};
         ifft(spectrum);
         auto result = t{
             .values = std::vector<value_t>(spectrum.size()),

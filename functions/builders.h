@@ -94,13 +94,7 @@ namespace mechdancer {
     #define SAVE_SIGNAL_FORMAT(PATH, S, TF) save(PATH, S, [](std::ofstream &file, typename decltype(S)::value_t x) { file << TF; })
     #define SAVE_SIGNAL_TF(PATH, S, TF) SAVE_SIGNAL_FORMAT(PATH, S, (TF) << std::endl)
     #define SAVE_SIGNAL(PATH, S) SAVE_SIGNAL_TF(PATH, S, x)
-    #define SAVE_SIGNAL_AUTO(PATH, S) { \
-        std::stringstream builder;      \
-        for(auto &part : PATH)          \
-            builder << part << '/';     \
-        builder << #S << ".txt";        \
-        SAVE_SIGNAL(builder.str(), S);  \
-    }
+    #define SAVE_SIGNAL_AUTO(SB, S) SAVE_SIGNAL(SB.save(#S), S)
 }
 
 #endif // DSP_SIMULATION_BUILDERS_H
