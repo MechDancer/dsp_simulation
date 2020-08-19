@@ -1,7 +1,6 @@
 #include <iostream>
 #include <algorithm>
 #include <filesystem>
-#include <sstream>
 #include <cmath>
 
 #include "functions/builders.h"
@@ -39,13 +38,13 @@ int main() {
     auto transceiver = load("../2048_1M_0.txt", MAIN_FS, 0s);
     auto excitation = sample(1'000, chirp(39_kHz, 61_kHz, 1ms), MAIN_FS, 0s);
     auto excitation_noise = excitation;
-    add_noise_measured(excitation_noise, -3_db);
+    add_noise_measured(excitation_noise, -6_db);
     auto reference = convolution(transceiver, excitation_noise); // 构造接收信号
     // 加噪
     auto DELAY = static_cast<size_t>(std::lround(DISTANCE * MAIN_FS.cast_to<Hz_t>().value / sound_speed(TEMPERATURE)));
     auto received = real_signal_of(DELAY + 3 * reference.values.size(), reference.sampling_frequency, 0s);
     std::copy(reference.values.begin(), reference.values.end(), received.values.begin() + DELAY);
-    add_noise(received, sigma_noise(received, -12_db));
+    add_noise(received, sigma_noise(reference, -12_db));
     // endregion
     // region 接收机仿真
     // 降低采样率重采样，模拟低采样率的嵌入式处理器
@@ -54,7 +53,8 @@ int main() {
     using sample_t = unsigned short;
     auto sampling = real_signal_of<sample_t>(sampling_float.values.size(), sampling_float.sampling_frequency, sampling_float.begin_time);
     std::transform(sampling_float.values.begin(), sampling_float.values.end(), sampling.values.begin(),
-                   [](auto x) { return static_cast<sample_t>(x / 15 + 1600); });
+                   [](auto x) { return static_cast<sample_t>(x / 15 + 1600.5); });
+    SAVE_SIGNAL_AUTO(script_builder, sampling_float);
     SAVE_SIGNAL_AUTO(script_builder, sampling);
     std::cout << "延迟点数 = " << DELAY * .6 << std::endl;
     { // 测试直接使用各种方法
@@ -68,6 +68,7 @@ int main() {
         SAVE_SIGNAL_AUTO(script_builder, test2);
     }
     // endregion
+    simulation(reference, sampling);
     return 0;
 }
 

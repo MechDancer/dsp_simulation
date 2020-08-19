@@ -15,7 +15,8 @@ mechdancer::script_builder_t::script_builder_t(std::string const &path) {
     std::stringstream builder;
     builder << data_file_path << path << '\\';
     data_file_path = builder.str();
-    std::filesystem::remove_all(data_file_path);
+    std::error_code _;
+    std::filesystem::remove_all(data_file_path, _);
     std::filesystem::create_directory(data_file_path);
 }
 
@@ -26,6 +27,7 @@ mechdancer::script_builder_t::~script_builder_t() {
     std::ofstream script(builder.str());
     builder.str("");
     
+    builder << "cd " << data_file_path << std::endl;
     for (auto const &file : files)
         builder << "load('" << data_file_path << file << ".txt');" << std::endl;
     

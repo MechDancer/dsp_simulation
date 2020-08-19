@@ -50,7 +50,8 @@ namespace mechdancer {
     
     template<RealSignal t, Number snr_t>
     auto sigma_noise(t const &signal, snr_t snr) {
-        return static_cast<typename t::value_t>(std::sqrt(energy(signal) / snr / signal.values.size()));
+        auto value = std::sqrt(energy(signal) / snr / signal.values.size());
+        return static_cast<typename t::value_t>(value);
     }
     
     template<RealSignal t, Number snr_t>
@@ -63,12 +64,12 @@ namespace mechdancer {
     /// \tparam sigma_t 标准差值类型
     /// \param signal 实信号
     /// \param sigma 噪声标准差
-    template<RealSignal t, Number sigma_t>
+    template<class t, class sigma_t> requires RealSignal<t> && Number<sigma_t>
     void add_noise(t &signal, sigma_t sigma) {
         if (sigma != 0) {
             using value_t = typename t::value_t;
-            std::random_device                rd{};
-            std::mt19937                      gen{rd()};
+            std::random_device rd{};
+            std::mt19937 gen{rd()};
             std::normal_distribution<value_t> d{value_t{}, sigma};
             for (auto &x : signal.values) x += d(gen);
         }
@@ -81,20 +82,23 @@ namespace mechdancer {
     /// \param signal 实信号
     /// \param snr 信噪比数值
     template<RealSignal t, Number snr_t>
-    void add_noise_measured(t &signal, snr_t snr) {
-        add_noise(signal, sigma_noise(signal, snr));
-    }
-    
-    /// 给信号加上高斯白噪声
-    /// \tparam snr_t 信噪比值类型
-    /// \tparam t 实信号类型
-    /// \tparam _value_t 信号数据类型
-    /// \param signal 实信号
-    /// \param snr 信噪比数值
-    template<RealSignal t, Number snr_t>
-    void add_noise_measured(t &signal, db_t<snr_t> snr) {
-        add_noise(signal, snr.to_ratio());
-    }
+    void add_noise_measured(t & signal, snr_t
+    snr) {
+    add_noise(signal, sigma_noise(signal, snr)
+    );
+}
+
+/// 给信号加上高斯白噪声
+/// \tparam snr_t 信噪比值类型
+/// \tparam t 实信号类型
+/// \tparam _value_t 信号数据类型
+/// \param signal 实信号
+/// \param snr 信噪比数值
+template<RealSignal t, Number snr_t>
+void add_noise_measured(t & signal, db_t < snr_t > snr) {
+    add_noise_measured(signal, snr.to_ratio());
+}
+
 }
 
 #endif // SIMULATION_NOISE_H
