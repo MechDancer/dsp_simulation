@@ -77,16 +77,6 @@ namespace mechdancer {
         return r.conjugate() * s / s.norm();
     }
     
-    //    template<RealSignal _signal_t>
-    //    auto correlation_init(_signal_t const &ref, size_t size = 0) {
-    //        using value_t = typename _signal_t::value_t;
-    //        using complex_t = std::complex<value_t>;
-    //        using spectrum_t = std::vector<complex_t>;
-    //
-    //        size = enlarge_to_2_power(std::max(ref.values.size(), size));
-    //
-    //    }
-    
     /// 频域互相关
     /// \tparam _signal_t 信号类型
     /// \param ref 参考信号
@@ -251,36 +241,69 @@ namespace mechdancer {
         };
     }
     
-    template<RealSignal A, RealSignal B>
-    auto sum(A const &a, B const &b) {
-        using common_t = common_type<A, B>;
+    /// 实倒频谱
+    /// \tparam t 实信号类型
+    /// \param signal 时域信号
+    /// \return 倒谱
+    template<RealSignal t>
+    t rceps(t const &signal, size_t size = 0) {
+        using value_t = typename t::value_t;
+        using spectrum_t = std::vector<complex_t<value_t>>;
         
-        using value_t = typename common_t::value_t;
-        using frequency_t = typename common_t::frequency_t;
-        using time_t = typename common_t::time_t;
-        
-        const auto fa = a.sampling_frequency.template cast_to<frequency_t>();
-        const auto fb = b.sampling_frequency.template cast_to<frequency_t>();
-        if (fa != fb) throw std::invalid_argument("");
-        
-        const auto ta = std::chrono::duration_cast<time_t>(a.begin_time);
-        const auto tb = std::chrono::duration_cast<time_t>(b.begin_time);
-        auto result = common_t{
-            .sampling_frequency = fa,
-            .begin_time = std::min(ta, tb),
+        auto spectrum = spectrum_t(enlarge_to_2_power(std::max(signal.values.size(), size)), complex_t<value_t>::zero);
+        std::transform(signal.values.begin(), signal.values.end(), spectrum.begin(),
+                       [](auto x) { return complex_t<value_t>{x, 0}; });
+        fft(spectrum);
+        for (auto &z : spectrum)
+            if (!z.is_zero())
+                z = {std::log(z.norm()), 0};
+        ifft(spectrum);
+        auto result = t{
+            .values = std::vector<value_t>(spectrum.size()),
+            .sampling_frequency = signal.sampling_frequency,
+            .begin_time = signal.begin_time,
         };
-        
-        const size_t ia = result.sampling_frequency.index_of(ta - result.begin_time);
-        const size_t ib = result.sampling_frequency.index_of(tb - result.begin_time);
-        result.values.resize(std::max(ia + a.values.size(), ib + b.values.size()));
-        
-        std::transform(a.values.begin(), a.values.end(), result.values.begin() + ia, [](auto x) { return static_cast<value_t>(x); });
-        auto p = b.values.begin();
-        auto q = result.values.begin() + ib;
-        while (p < b.values.end()) *q++ += static_cast<value_t>(*p++);
-        
+        std::transform(spectrum.begin(), spectrum.end(), result.values.begin(),
+                       [](auto z) { return z.re; });
         return result;
     }
+    
+    #define OPERATOR(WHAT)                                                                                                            \
+    template<RealSignal t, RealSignal u>                                                                                              \
+    auto operator WHAT(t const &a, u const &b) {                                                                                      \
+        using common_t = common_type<t, u>;                                                                                           \
+                                                                                                                                      \
+        using value_t = typename common_t::value_t;                                                                                   \
+        using frequency_t = typename common_t::frequency_t;                                                                           \
+        using time_t = typename common_t::time_t;                                                                                     \
+                                                                                                                                      \
+        const auto fa = a.sampling_frequency.template cast_to<frequency_t>();                                                         \
+        const auto fb = b.sampling_frequency.template cast_to<frequency_t>();                                                         \
+        if (fa != fb) throw std::invalid_argument("");                                                                                \
+                                                                                                                                      \
+        const auto ta = std::chrono::duration_cast<time_t>(a.begin_time);                                                             \
+        const auto tb = std::chrono::duration_cast<time_t>(b.begin_time);                                                             \
+        auto result = common_t{                                                                                                       \
+            .sampling_frequency = fa,                                                                                                 \
+            .begin_time = std::min(ta, tb),                                                                                           \
+        };                                                                                                                            \
+                                                                                                                                      \
+        const size_t ia = result.sampling_frequency.index_of(ta - result.begin_time);                                                 \
+        const size_t ib = result.sampling_frequency.index_of(tb - result.begin_time);                                                 \
+        result.values.resize(std::max(ia + a.values.size(), ib + b.values.size()));                                                   \
+                                                                                                                                      \
+        std::transform(a.values.begin(), a.values.end(), result.values.begin() + ia, [](auto x) { return static_cast<value_t>(x); }); \
+        auto p = b.values.begin();                                                                                                    \
+        auto q = result.values.begin() + ib;                                                                                          \
+        while (p < b.values.end()) *q++ WHAT= static_cast<value_t>(*p++);                                                             \
+                                                                                                                                      \
+        return result;                                                                                                                \
+    }
+    
+    OPERATOR(+)
+    OPERATOR(-)
+    
+    #undef OPERATOR
 }
 
 #endif // DSP_SIMULATION_PROCESS_REAL_H

@@ -109,6 +109,8 @@ namespace mechdancer {
         OPERATOR(*, re * others, im * others)
         
         OPERATOR(/, re / others, im / others)
+    
+        #undef OPERATOR
         
         template<Number num_t>
         complex_t &operator+=(const num_t &others) {

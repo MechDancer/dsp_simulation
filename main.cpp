@@ -17,8 +17,11 @@ constexpr auto sound_speed(t temperature) {
     return 20.048 * std::sqrt(temperature + 273.15);
 }
 
+/// 基于互相关的时延估计
+/// \tparam t 参考信号类型
+/// \tparam u 接收信号类型
 template<class t, class u> requires RealSignal<t> && RealSignal<u>
-void simulation(t, u);
+[[maybe_unused]] void simulation(t, u);
 
 int main() {
     // region 准备环境
@@ -29,9 +32,9 @@ int main() {
     std::filesystem::create_directory("../data");
     // endregion
     // region 参数
-    constexpr static auto MAIN_FS = 1_MHz;   // 仿真采样率（取决于测量脉冲响应的采样率）
-    constexpr static auto DISTANCE = 3;      // 实际距离（米）
-    constexpr static auto TEMPERATURE = 20;  // 气温（℃）
+    constexpr static auto MAIN_FS = 1_MHz;  // 仿真采样率（取决于测量脉冲响应的采样率）
+    constexpr static auto DISTANCE = 3;     // 实际距离（米）
+    constexpr static auto TEMPERATURE = 20; // 气温（℃）
     // endregion
     // region 信源信道仿真
     auto transceiver = load("../2048_1M_0.txt", MAIN_FS, 0s);
@@ -55,17 +58,21 @@ int main() {
                    [](auto x) { return static_cast<sample_t>(x / 15 + 1600); });
     SAVE_SIGNAL_AUTO({ PATH }, sampling)
     std::cout << "延迟点数 = " << DELAY * .6 << std::endl;
-    { // 测试互相关
-        auto test = correlation(resample(reference, 600_kHz, 64), sampling_float);
-        SAVE_SIGNAL_AUTO({ PATH }, test)
+    { // 测试直接使用各种方法
+        auto temp = resample(reference, sampling.sampling_frequency, 64);
+        // 互相关
+        auto test1 = correlation(temp, sampling_float);
+        // 倒谱
+        auto test2 = rceps(sampling + temp) - rceps(sampling - temp);
+        SAVE_SIGNAL_AUTO({ PATH }, test1)
+        SAVE_SIGNAL_AUTO({ PATH }, test2)
     }
     // endregion
-    simulation(convolution(transceiver, excitation), sampling);
     return 0;
 }
 
 template<class t, class u> requires RealSignal<t> && RealSignal<u>
-void simulation(t reference, u sampling) {
+[[maybe_unused]] void simulation(t reference, u sampling) {
     constexpr static auto FRAME_SIZE = 1024; // 帧长度
     // region 重叠分帧，模拟内存不足的嵌入式系统
     auto frames = std::vector<u>();
