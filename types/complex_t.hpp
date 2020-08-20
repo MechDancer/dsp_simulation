@@ -18,6 +18,11 @@ namespace mechdancer {
         
         const static complex_t zero;
         
+        template<Number u>
+        static complex_t from_real(u value) {
+            return {static_cast<t>(value), 0};
+        }
+        
         [[nodiscard]]
         t norm() const {
             return std::hypot(re, im);
@@ -109,7 +114,7 @@ namespace mechdancer {
         OPERATOR(*, re * others, im * others)
         
         OPERATOR(/, re / others, im / others)
-    
+        
         #undef OPERATOR
         
         template<Number num_t>

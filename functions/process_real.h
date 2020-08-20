@@ -104,11 +104,11 @@ namespace mechdancer {
             throw std::invalid_argument("the two signals should be with same sampling_frequency");
         
         auto size = enlarge_to_2_power(ref.values.size() + signal.values.size() - 1);
-        auto R = std::vector<complex_t<Tx>>(size, complex_t<Tx>::zero);
-        auto S = std::vector<complex_t<Tx>>(size, complex_t<Tx>::zero);
+        auto R = std::vector<complex_t<Tx>>(size, complex_t<Tx>::from_real(ref.values.back()));
+        auto S = std::vector<complex_t<Tx>>(size, complex_t<Tx>::from_real(signal.values.back()));
         
-        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](auto x) { return complex_t<Tx>{static_cast<Tx>(x), 0}; });
-        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](auto x) { return complex_t<Tx>{static_cast<Tx>(x), 0}; });
+        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](auto x) { return complex_t<Tx>::from_real(x); });
+        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](auto x) { return complex_t<Tx>::from_real(x); });
         
         fft(R);
         fft(S);
@@ -301,6 +301,7 @@ namespace mechdancer {
     }
     
     OPERATOR(+)
+    
     OPERATOR(-)
     
     #undef OPERATOR

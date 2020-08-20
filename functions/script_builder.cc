@@ -22,7 +22,7 @@ mechdancer::script_builder_t::script_builder_t(std::string const &path) {
 
 mechdancer::script_builder_t::~script_builder_t() {
     std::stringstream builder;
-    builder << data_file_path << "script.txt";
+    builder << data_file_path << "matlab_script.txt";
     
     std::ofstream script(builder.str());
     builder.str("");
