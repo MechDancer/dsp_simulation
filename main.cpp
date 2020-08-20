@@ -11,17 +11,10 @@
 
 using namespace mechdancer;
 
-constexpr static auto PATH = "../data"; // 数据保存路径
 template<class t> requires Number<t>
 constexpr auto sound_speed(t temperature) {
     return 20.048 * std::sqrt(temperature + 273.15);
 }
-
-/// 基于互相关的时延估计
-/// \tparam t 参考信号类型
-/// \tparam u 接收信号类型
-template<class t, class u> requires RealSignal<t> && RealSignal<u>
-[[maybe_unused]] void simulation(t, u);
 
 int main() {
     // region 准备环境
@@ -30,9 +23,10 @@ int main() {
     script_builder_t script_builder("data");
     // endregion
     // region 参数
-    constexpr static auto MAIN_FS = 1_MHz;  // 仿真采样率（取决于测量脉冲响应的采样率）
-    constexpr static auto DISTANCE = 3;     // 实际距离（米）
-    constexpr static auto TEMPERATURE = 20; // 气温（℃）
+    constexpr static auto MAIN_FS = 1_MHz;   // 仿真采样率（取决于测量脉冲响应的采样率）
+    constexpr static auto DISTANCE = 3;      // 实际距离（米）
+    constexpr static auto TEMPERATURE = 20;  // 气温（℃）
+    constexpr static auto FRAME_SIZE = 1024; // 帧长度
     // endregion
     // region 信源信道仿真
     auto transceiver = load("../2048_1M_0.txt", MAIN_FS, 0s);
@@ -68,16 +62,9 @@ int main() {
         SAVE_SIGNAL_AUTO(script_builder, test2);
     }
     // endregion
-    simulation(reference, sampling);
-    return 0;
-}
-
-template<class t, class u> requires RealSignal<t> && RealSignal<u>
-[[maybe_unused]] void simulation(t reference, u sampling) {
-    constexpr static auto FRAME_SIZE = 1024; // 帧长度
     // region 重叠分帧，模拟内存不足的嵌入式系统
-    auto frames = std::vector<u>();
-    using Tt = typename u::time_t;
+    auto frames = std::vector<decltype(sampling)>();
+    using Tt = typename decltype(sampling)::time_t;
     auto fs = sampling.sampling_frequency;
     for (auto i = 0; i < sampling.values.size(); i += FRAME_SIZE) {
         frames.push_back({decltype(sampling.values)(FRAME_SIZE), fs, fs.template duration_of<Tt>(i)});
@@ -131,4 +118,5 @@ template<class t, class u> requires RealSignal<t> && RealSignal<u>
             max_i = i;
     std::cout << "估计点数 = " << (max_i - 256) * 4 << std::endl;
     // endregion
+    return 0;
 }

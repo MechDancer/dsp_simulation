@@ -82,23 +82,20 @@ namespace mechdancer {
     /// \param signal 实信号
     /// \param snr 信噪比数值
     template<RealSignal t, Number snr_t>
-    void add_noise_measured(t & signal, snr_t
-    snr) {
-    add_noise(signal, sigma_noise(signal, snr)
-    );
-}
-
-/// 给信号加上高斯白噪声
-/// \tparam snr_t 信噪比值类型
-/// \tparam t 实信号类型
-/// \tparam _value_t 信号数据类型
-/// \param signal 实信号
-/// \param snr 信噪比数值
-template<RealSignal t, Number snr_t>
-void add_noise_measured(t & signal, db_t < snr_t > snr) {
-    add_noise_measured(signal, snr.to_ratio());
-}
-
+    void add_noise_measured(t &signal, snr_t snr) {
+        add_noise(signal, sigma_noise(signal, snr));
+    }
+    
+    /// 给信号加上高斯白噪声
+    /// \tparam snr_t 信噪比值类型
+    /// \tparam t 实信号类型
+    /// \tparam _value_t 信号数据类型
+    /// \param signal 实信号
+    /// \param snr 信噪比数值
+    template<RealSignal t, Number snr_t>
+    void add_noise_measured(t &signal, db_t<snr_t> snr) {
+        add_noise_measured(signal, snr.to_ratio());
+    }
 }
 
 #endif // SIMULATION_NOISE_H
