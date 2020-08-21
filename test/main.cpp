@@ -23,15 +23,13 @@ int main() {
     script_builder_t script_builder("data");
     // endregion
     std::vector<std::vector<unsigned short>> slices;
-    {
-        std::ofstream read_me("../data/README.md");
-        read_me << "# 说明\n"
-                   "- 信号来源：015.BIN\n"
-                   "- 信号说明：20 米"
-                   "- 算法：噪声抑制白化互相关";
-    }
+    std::ofstream("../data/README.md")
+        << "# 说明\n"
+           "- 信号来源：014.BIN\n"
+           "- 信号说明：30 米"
+           "- 算法：噪声抑制白化互相关";
     { // 加载接收信号
-        constexpr static auto path = "../015.BIN";
+        constexpr static auto path = "../014.BIN";
         auto size = std::filesystem::file_size(path);
         auto signal = std::vector<unsigned short>(size / 2);
         std::ifstream(path, std::ios_base::binary)
@@ -61,7 +59,7 @@ int main() {
     std::vector<size_t> result(slices.size());
     
     std::mutex mutex;
-    for (auto i = 0; i < 20; ++i)
+    for (auto i = 0; i < slices.size(); ++i)
         tasks.emplace_back([&, i] {
             signal_t<unsigned short, decltype(MAIN_FS), floating_seconds>
                 received{
@@ -71,19 +69,28 @@ int main() {
             };
             #if defined(倒谱)
             auto spectrum = rceps(received + reference) - rceps(received - reference);
-            spectrum.values.erase(spectrum.values.begin() + spectrum.values.size() / 2,
-                                  spectrum.values.end());
+            auto &values = spectrum.values;
+            std::fill(values.begin(), values.begin() + reference.values.size(), 0);
             #elif defined(互相关)
             auto spectrum = correlation<correlation_mode::noise_reduction>(reference, received);
             auto max = 1.2e4;
-            for (auto &x : spectrum.values)
-                if (x <= max) x = 0;
-                else max = x;
-            max /= 3;
-            auto max_i = 0;
-            for (auto x : spectrum.values) {
-                ++max_i;
-                if (x > max) break;
+            auto p_count = 0;
+            auto n_count = 0;
+            auto j = 0;
+            for (auto &x : spectrum.values) {
+                if (x <= max * (1 + p_count / 500.0)) {
+                    x = 0;
+                    if (max > 1.2e4 && ++p_count > 1000) {
+                        if (n_count > 3) break;
+                        n_count = 0;
+                    }
+                } else {
+                    max = x;
+                    p_count = 0;
+                    if (++n_count > 3)
+                        result[i] = j;
+                }
+                ++j;
             }
             #endif
             std::stringstream string_builder;
@@ -92,9 +99,6 @@ int main() {
             {
                 std::lock_guard<decltype(mutex)> _(mutex);
                 std::cout << name << "(" << spectrum.values.size() << ") saving" << std::endl;
-                #ifdef 互相关
-                result[i] = max_i - 1;
-                #endif
                 name = script_builder.save(name);
             }
             SAVE_SIGNAL(name, spectrum);
