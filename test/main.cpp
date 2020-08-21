@@ -25,11 +25,11 @@ int main() {
     std::vector<std::vector<unsigned short>> slices;
     std::ofstream("../data/README.md")
         << "# 说明\n"
-           "- 信号来源：014.BIN\n"
+           "- 信号来源：017.BIN\n"
            "- 信号说明：30 米"
            "- 算法：噪声抑制白化互相关";
     { // 加载接收信号
-        constexpr static auto path = "../014.BIN";
+        constexpr static auto path = "../016.BIN";
         auto size = std::filesystem::file_size(path);
         auto signal = std::vector<unsigned short>(size / 2);
         std::ifstream(path, std::ios_base::binary)
@@ -38,7 +38,7 @@ int main() {
             if (*p > 4096) {
                 slices.emplace_back();
                 slices.back().push_back(*p - 4096);
-            } else
+            } else if (slices.back().size() < 100000)
                 slices.back().push_back(*p);
         std::cout << "parsed " << slices.size() << " groups of signal" << std::endl;
     }
@@ -56,7 +56,7 @@ int main() {
     }
     
     std::vector<std::thread> tasks;
-    std::vector<size_t> result(slices.size());
+    std::vector<long> result(slices.size());
     
     std::mutex mutex;
     for (auto i = 0; i < slices.size(); ++i)
@@ -80,18 +80,16 @@ int main() {
             for (auto &x : spectrum.values) {
                 if (x <= max * (1 + p_count / 500.0)) {
                     x = 0;
-                    if (max > 1.2e4 && ++p_count > 1000) {
-                        if (n_count > 3) break;
-                        n_count = 0;
-                    }
+                    if (result[i] > 0) ++p_count;
                 } else {
                     max = x;
                     p_count = 0;
-                    if (++n_count > 3)
-                        result[i] = j;
+                    ++n_count;
+                    result[i] = j;
                 }
                 ++j;
             }
+            if (n_count < 3) result[i] = 0;
             #endif
             std::stringstream string_builder;
             string_builder << "group" << i;
@@ -105,10 +103,8 @@ int main() {
         });
     for (auto &task : tasks) task.join();
     auto file = std::ofstream(script_builder.save("result"));
-    for (auto j = 0; j < result.size(); ++j) {
-        std::cout << "group " << j << " = " << result[j] * 343e-6 << std::endl;
-        file << result[j] * 343e-6 << std::endl;
-    }
+    for (auto j : result)
+        file << j << '\t' << (j - 3046) * 343e-6 << std::endl;
     return 0;
 }
 
