@@ -250,7 +250,7 @@ namespace mechdancer {
         using value_t = typename t::value_t;
         using spectrum_t = std::vector<complex_t<value_t>>;
         
-        auto spectrum = spectrum_t(enlarge_to_2_power(std::max(signal.values.size(), size)), complex_t<value_t>::zero);
+        auto spectrum = spectrum_t(2 * enlarge_to_2_power(std::max(signal.values.size(), size)), complex_t<value_t>::zero);
         std::transform(signal.values.begin(), signal.values.end(), spectrum.begin(),
                        [](auto x) { return complex_t<value_t>{x, 0}; });
         fft(spectrum);
