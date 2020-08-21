@@ -8,9 +8,11 @@
 #include <type_traits>
 #include <vector>
 #include <numeric>
+#include <algorithm>
 #include <functional>
 
 #include "fft.h"
+#include "process_complex.h"
 
 namespace mechdancer {
     /// 求数值向量均值
@@ -254,10 +256,18 @@ namespace mechdancer {
         std::transform(signal.values.begin(), signal.values.end(), spectrum.begin(),
                        [](auto x) { return complex_t<value_t>{x, 0}; });
         fft(spectrum);
-        for (auto &z : spectrum)
-            if (!z.is_zero())
-                z = {static_cast<value_t>(std::log(z.norm())), 0};
+        auto p = spectrum.begin();
+        auto q = spectrum.end() - 1;
+        auto e = spectrum.begin() + spectrum.size() / 2;
+        *p = {static_cast<value_t>(std::log(p->norm())), 0};
+        *e = {static_cast<value_t>(std::log(e->norm())), 0};
+        ++p;
+        while (p < e) {
+            auto temp = static_cast<value_t>(std::log(p->norm()));
+            *p++ = *q-- = {temp, 0};
+        };
         ifft(spectrum);
+        spectrum.erase(e, spectrum.end());
         auto result = t{
             .values = std::vector<value_t>(spectrum.size()),
             .sampling_frequency = signal.sampling_frequency,
@@ -267,6 +277,17 @@ namespace mechdancer {
                        [](auto z) { return z.re; });
         return result;
     }
+    
+    template<class t, class u> requires RealSignal<t> && Frequency<u>
+    void bandpass(t &signal, u min, u max) {
+        auto spectrum = complex(signal);
+        auto &values = spectrum.values;
+        fft(values);
+        bandpass(spectrum, min, max);
+        ifft(values);
+        values.erase(values.begin() + signal.values.size(), values.end());
+        std::transform(values.begin(), values.end(), signal.values.begin(), [](auto z) { return z.re; });
+    };
     
     #define OPERATOR(WHAT)                                                                                                            \
     template<RealSignal t, RealSignal u>                                                                                              \

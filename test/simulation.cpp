@@ -44,13 +44,7 @@ int main() {
     auto DELAY = static_cast<size_t>(std::lround(DISTANCE * MAIN_FS.cast_to<Hz_t>().value / sound_speed(TEMPERATURE)));
     auto received = real_signal_of(DELAY + 3 * reference.values.size(), reference.sampling_frequency, 0s);
     std::copy(reference.values.begin(), reference.values.end(), received.values.begin() + DELAY);
-    auto multipath = real_signal_of(500, reference.sampling_frequency, 0s);
-    for(auto i = 0; i< 200;i+=10){
-        multipath.values[i]=1;
-    }
-    multipath.values[499] = -1;
-    received = convolution(multipath, received);
-//    add_noise(received, sigma_noise(reference, -12_db));
+    add_noise(received, sigma_noise(reference, -12_db));
     // endregion
     // region 接收机仿真
     // 降低采样率重采样，模拟低采样率的嵌入式处理器

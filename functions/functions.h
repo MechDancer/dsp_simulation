@@ -5,7 +5,7 @@
 #ifndef DSP_SIMULATION_FUNCTIONS_H
 #define DSP_SIMULATION_FUNCTIONS_H
 
-#include "../types/concepts.h"
+#include "../types/signal_t.hpp"
 
 namespace mechdancer {
     /// 若两个类型相同，取此类型，否则取第三个类型

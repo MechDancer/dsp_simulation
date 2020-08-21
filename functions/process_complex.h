@@ -7,9 +7,8 @@
 
 #include <cmath>
 #include <algorithm>
+#include <stdexcept>
 
-#include "../types/concepts.h"
-#include "../types/signal_t.hpp"
 #include "functions.h"
 
 namespace mechdancer {

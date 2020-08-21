@@ -105,7 +105,7 @@ namespace mechdancer {
     /// \tparam t 信号类型
     /// \param signal 复信号
     /// \return 复信号模组成的实信号
-    template<ComplexSignal t, class _value_t = typename t::value_t::value_type>
+    template<ComplexSignal t, class _value_t = typename t::value_t::value_t>
     auto abs(t const &signal) {
         auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
         std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
