@@ -77,13 +77,10 @@ namespace mechdancer {
     /// \tparam t 信号类型
     /// \param signal 实信号
     /// \return 复信号
-    template<RealSignal t>
+    template<RealSignal t, Number value_t = typename t::value_t>
     auto complex(t const &signal) {
-        using value_t = typename t::value_t;
-        
         auto result = complex_signal_of<value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
-        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
-                       [](value_t x) { return complex_t<value_t>{x, 0}; });
+        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(), [](auto x) { return complex_t<value_t>::from_real(x); });
         return result;
     }
     
