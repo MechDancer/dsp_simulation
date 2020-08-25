@@ -11,11 +11,6 @@
 
 using namespace mechdancer;
 
-#define 互相关
-#ifndef 互相关
-#define 倒谱
-#endif
-
 struct peak_t { size_t index; float value; };
 
 int main() {
@@ -27,11 +22,11 @@ int main() {
     std::vector<std::vector<unsigned short>> slices;
     std::ofstream("../data/README.md")
         << "# 说明\n"
-           "- 信号来源：016.BIN\n"
-           "- 信号说明：10 米"
+           "- 信号来源：070.BIN\n"
+           "- 信号说明：5 米"
            "- 算法：噪声抑制白化互相关";
     { // 加载接收信号
-        constexpr static auto path = "../016.BIN";
+        constexpr static auto path = "../070.BIN";
         auto size = std::filesystem::file_size(path);
         auto signal = std::vector<unsigned short>(size / 2);
         std::ifstream(path, std::ios_base::binary)
@@ -47,7 +42,7 @@ int main() {
     constexpr static auto MAIN_FS = 1_MHz; // 采样率
     // region 信源信道仿真
     auto transceiver = load("../2048_1M_0.txt", MAIN_FS, 0s);
-    auto excitation = sample(1'000, chirp(28_kHz, 70_kHz, 1ms), MAIN_FS, 0s);
+    auto excitation = sample(1'000, chirp(38_kHz, 42_kHz, 1ms), MAIN_FS, 0s);
     auto reference = convolution(transceiver, excitation); // 构造接收信号
     SAVE_SIGNAL_AUTO(script_builder, reference);
     { // 构造发送信号
@@ -70,11 +65,6 @@ int main() {
                 .sampling_frequency = MAIN_FS,
                 .begin_time = floating_seconds(0),
             };
-            #if defined(倒谱)
-            auto spectrum = rceps(received + reference) - rceps(received - reference);
-            auto &values = spectrum.values;
-            std::fill(values.begin(), values.begin() + reference.values.size(), 0);
-            #elif defined(互相关)
             auto size = enlarge_to_2_power(std::max(reference.values.size(), received.values.size()));
             auto R = complex(reference);
             auto S = complex<decltype(received), float>(received);
@@ -83,9 +73,9 @@ int main() {
             fft(R.values);
             fft(S.values);
             {
-                auto p = R.values.begin() + size * (20e3f / 1e6f);
-                auto q = S.values.begin() + size * (20e3f / 1e6f);
-                auto e = S.values.begin() + size * (80e3f / 1e6f);
+                auto p = R.values.begin() + size * (32e3f / 1e6f);
+                auto q = S.values.begin() + size * (32e3f / 1e6f);
+                auto e = S.values.begin() + size * (48e3f / 1e6f);
                 std::fill(S.values.begin(), q, complex_t<float>::zero);
                 std::fill(e, S.values.end(), complex_t<float>::zero);
                 do {
@@ -97,29 +87,29 @@ int main() {
                 } while (++q < e);
             }
             ifft(S.values);
+            S.values.erase(S.values.begin() + received.values.size(), S.values.end());
             auto spectrum = mechdancer::abs(S);
             {
-                auto begin = spectrum.values.begin() + reference.values.size() - 1;
                 result[i] = {0, 0};
                 // 找到最大值
                 for (auto x : spectrum.values)
                     if (x > result[i].value) result[i].value = x;
-                result[i].value /= 2;
+                result[i].value *= .36f;
                 // 找到首个峰（最大值的一半）
-                auto p = begin;
+                auto p = spectrum.values.begin();
                 while (*p++ < result[i].value);
-                // 找到这个峰的极大值，直到一个下跌 5% 的谷
-                for (auto q = p; *q > result[i].value * .95f; ++q)
+                // 找到这个峰的极大值，直到一个下跌 20% 的谷
+                for (auto q = p; *q > result[i].value * .8f; ++q)
                     if (*q > result[i].value)
                         result[i].value = *q;
                 // 找到首次达到极大值 98% 的位置
                 while (*p++ < result[i].value * .98f);
+                p[-1] = 0;
                 // 找到这个位置后的第一个极大值
                 while (*p > result[i].value)
                     result[i].value = *p++;
-                result[i].index = p - begin;
+                result[i].index = p - spectrum.values.begin();
             }
-            #endif
             std::stringstream string_builder;
             string_builder << "group" << i;
             std::string name = string_builder.str();
@@ -133,7 +123,7 @@ int main() {
     for (auto &task : tasks) task.join();
     auto file = std::ofstream(script_builder.save("result"));
     for (auto j : result)
-        file << j.index + reference.values.size() - 1 << '\t' << j.value << '\t' << j.index * 343e-6 << std::endl;
+        file << j.index << '\t' << j.value << '\t' << j.index * 343e-6 << std::endl;
     return 0;
 }
 
