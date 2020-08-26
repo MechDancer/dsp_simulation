@@ -39,6 +39,8 @@ mechdancer::script_builder_t::~script_builder_t() {
 std::string mechdancer::script_builder_t::save(std::string const &file) {
     files.push_back(file);
     std::stringstream builder;
-    builder << data_file_path << file << ".txt";
+    builder << data_file_path << file;
+    if (std::none_of(file.begin(), file.end(), [](auto c) { return c == '.'; }))
+        builder << ".txt";
     return builder.str();
 }

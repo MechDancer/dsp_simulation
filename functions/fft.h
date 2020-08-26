@@ -16,6 +16,8 @@ namespace mechdancer {
     template<Integer t>
     constexpr t omega_times = std::numeric_limits<t>::max() >> (sizeof(t) * 4);
     
+    std::vector<double> MEMORY;
+    
     /// 用于正变换的 Ω_n^k
     /// \tparam t 复数值数据类型
     /// \param k k
@@ -23,15 +25,40 @@ namespace mechdancer {
     /// \return Ω_n^k
     template<Number t>
     static complex_t<t> omega(unsigned k, unsigned n) {
-        if constexpr (std::is_integral_v<t>) {
-            auto theta = 2 * PI * k / n;
-            return {static_cast<t>(omega_times<t> * std::cos(theta)),
-                    static_cast<t>(omega_times<t> * std::sin(theta))};
-        } else {
-            t theta = 2 * PI * k / n;
-            return {static_cast<t>(std::cos(theta)),
-                    static_cast<t>(std::sin(theta))};
+        auto quarter = n / 4;
+        if (MEMORY.size() < quarter) {
+            MEMORY.resize(quarter);
+            for (unsigned i = 0; i < quarter; ++i)
+                MEMORY[i] = std::cos(2 * PI * i / n);
+        } else
+            while (quarter < MEMORY.size()) {
+                k <<= 1u;
+                quarter <<= 1u;
+            }
+        auto i = k % quarter;
+        auto result = complex_t<double>{MEMORY[i], i ? MEMORY[quarter - i] : 0};
+        switch (k / quarter) {
+            case 0:
+                break;
+            case 1:
+                result = {-result.im, result.re};
+                break;
+            case 2:
+                result = -result;
+                break;
+            case 3:
+                result = {result.im, -result.re};
+                break;
+            default:
+                throw std::runtime_error("");
         }
+        
+        if constexpr (std::is_integral_v<t>)
+            return {static_cast<t>(omega_times<t> * result.re),
+                    static_cast<t>(omega_times<t> * result.im)};
+        else
+            return {static_cast<t>(result.re),
+                    static_cast<t>(result.im)};
     }
     
     /// 用于反变换的 Ω_n^k

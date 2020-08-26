@@ -22,11 +22,11 @@ int main() {
     std::vector<std::vector<unsigned short>> slices;
     std::ofstream("../data/README.md")
         << "# 说明\n"
-           "- 信号来源：070.BIN\n"
-           "- 信号说明：5 米"
+           "- 信号来源：074.BIN\n"
+           "- 信号说明：13 米"
            "- 算法：噪声抑制白化互相关";
     { // 加载接收信号
-        constexpr static auto path = "../070.BIN";
+        constexpr static auto path = "../074.BIN";
         auto size = std::filesystem::file_size(path);
         auto signal = std::vector<unsigned short>(size / 2);
         std::ifstream(path, std::ios_base::binary)
@@ -51,6 +51,15 @@ int main() {
                        [](auto x) { return static_cast<unsigned short>(std::round(x * 2000 + 2048)); });
         sending.values.push_back(2048);
         SAVE_SIGNAL_AUTO(script_builder, sending);
+    }
+    {
+        std::ofstream file(script_builder.save("ref_signal.c"));
+        file << "#include \"correlation.h\"" << std::endl
+             << std::endl
+             << "const complex_value_t ref_signal[] = {" << std::endl;
+        for (auto x : resample(reference, 125_kHz, 4).values)
+            file << '\t' << x << ',' << std::endl;
+        file << "};" << std::endl;
     }
     
     std::vector<std::thread> tasks;
