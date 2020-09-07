@@ -123,6 +123,127 @@ namespace mechdancer {
         fft<fft_operation::ifft>(memory);
         for (auto n = memory.size(); auto &p : memory) p /= n;
     }
+    
+    /// 用于 FFT 的前后颠倒
+    /// \tparam t 数据类型
+    /// \param memory 数据
+    template<class t>
+    void fft_shift(std::vector<t> &memory) {
+        auto n = enlarge_to_2_power(memory.size());
+        memory.resize(n, memory.back());
+        std::swap_ranges(memory.begin(), memory.begin() + n / 2, memory.begin() + n / 2);
+    }
+    
+    template<Number t, unsigned ulp = 1>
+    bool almost_equal(t x, t y) {
+        constexpr static auto epsilon = std::numeric_limits<t>::epsilon() * ulp;
+        auto diff = std::abs(x - y);
+        return diff <= std::abs(x + y) * epsilon || diff < std::numeric_limits<t>::min();
+    }
+    
+    template<unsigned order, Number t = float>
+    void frft_spectial(std::vector<complex_t<t>> &signal, double sqrt_n) {
+        static_assert(order == 1 || order == 2 || order == 3, "only for order 1, 2 or 3");
+        if constexpr (order == 2) {
+            std::reverse(signal.begin(), signal.end());
+        } else if constexpr (order == 1) {
+            fft_shift(signal);
+            fft<fft_operation::fft>(signal);
+            for (auto &x : signal) x /= sqrt_n;
+            fft_shift(signal);
+        } else {
+            fft_shift(signal);
+            fft<fft_operation::ifft>(signal); // 免除 ifft 幅度变换
+            for (auto &x : signal) x /= sqrt_n;
+            fft_shift(signal);
+        }
+    }
+    
+    template<Number t = float, Number order_t>
+    void frft(std::vector<complex_t<t>> &signal, order_t order) {
+        auto n = enlarge_to_2_power(signal.size());
+        signal.resize(n, signal.back());
+        auto sqrt_n = std::sqrt(n);
+        
+        // 解周期性
+        while (order < 0) order += 4;
+        while (order >= 4) order -= 4;
+        // 处理特殊情况
+        if (almost_equal<double>(order, 0))
+            return;
+        if (almost_equal<double>(order, 1)) {
+            frft_spectial<1>(signal, sqrt_n);
+            return;
+        }
+        if (almost_equal<double>(order, 2)) {
+            frft_spectial<2>(signal, sqrt_n);
+            return;
+        }
+        if (almost_equal<double>(order, 3)) {
+            frft_spectial<3>(signal, sqrt_n);
+            return;
+        }
+        // 归入 [.5, 1.5)
+        if (order > 2) {
+            order -= 2;
+            frft_spectial<2>(signal, sqrt_n);
+        }
+        if (order >= 1.5) {
+            order -= 1;
+            frft_spectial<1>(signal, sqrt_n);
+        } else if (order < .5) {
+            order += 1;
+            frft_spectial<3>(signal, sqrt_n);
+            fft_shift(signal);
+        }
+        { // 时频域同时插值
+            signal.resize(2 * n);
+            auto p = signal.end(), q = signal.begin() + n;
+            while (p != q) {
+                *--p = {};
+                *--p = *--q;
+            }
+            fft(signal);
+            std::fill(signal.begin() + n / 2, signal.end() - n / 2 + 1, complex_t<t>{});
+            fft<fft_operation::ifft>(signal); // 此处免除一次 ifft 的幅度变换，合并到下面
+            signal.resize(8 * n, complex_t<t>{}); // 直接扩张到 8n，用于后续做卷积，插值后的信号只使用前面的 4n
+            std::transform(signal.begin(), signal.begin() + 2 * n, signal.begin() + n, [n](auto z) { return z / n; });
+            std::fill(signal.begin(), signal.begin() + n, complex_t<t>{});
+        }
+        { // 乘 + 卷 + 乘
+            auto alpha = order * PI / 2;
+            auto c1 = PI / 4 / n * -std::tan(alpha / 2);
+            auto c2 = PI / 4 / n / std::sin(alpha);
+            auto chirp = std::vector<complex_t<float>>(8 * n, complex_t<t>{});
+            auto k = .5 - 2 * n;
+            for (unsigned i = 0; i < 4 * n; ++i, ++k) {
+                auto c = c1 * k * k;
+                signal[i] *= complex_t<t>(std::cos(c), std::sin(c));
+                c = c2 * k * k;
+                chirp[i] = complex_t<t>(std::cos(c), std::sin(c));
+            }
+            fft(signal);
+            fft(chirp);
+            for (unsigned i = 0; i < 8 * n; ++i)
+                signal[i] *= chirp[i];
+            ifft(signal);
+            {
+                auto beta = alpha / 2 - PI / 4;
+                auto c = complex_t<t>(std::cos(beta), std::sin(beta)) / (2 * std::sqrtf(n * std::sinf(alpha)));
+                auto p = signal.begin();
+                auto q = signal.begin() + 3 * n;
+                auto e = signal.begin() + n;
+                for (; p != e; ++p, q += 2)
+                    *p = *q * c;
+                signal.resize(n);
+            }
+            k = .5 - n;
+            for (unsigned i = 0; i < n; ++i, k += 2) {
+                auto c = c2 * k * k;
+                signal[i] *= complex_t<t>(std::cos(c), std::sin(c));
+            }
+        }
+    }
 }
 
 #endif //DSP_SIMULATION_FFT_H

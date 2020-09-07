@@ -18,7 +18,7 @@ namespace mechdancer {
         
         constexpr complex_t() : re(0), im(0) {}
         
-        template<class u>
+        template<Number u>
         constexpr complex_t(u re) : re(static_cast<t>(re)), im(0) {}
         
         template<class u, class v>

@@ -216,19 +216,19 @@ namespace mechdancer {
                  typename _signal_t::time_t>>
     new_signal_t hilbert(_signal_t const &signal) {
         auto size = enlarge_to_2_power(signal.values.size());
-        auto result = std::vector<complex_t<_value_t>>(size, complex_t<_value_t>::zero);
+        auto result = std::vector<complex_t<_value_t>>(size, signal.values.back());
         std::transform(signal.values.begin(), signal.values.end(), result.begin(),
-                       [](_value_t x) { return complex_t<_value_t>{x, 0}; });
+                       [](auto x) -> complex_t<_value_t> { return x; });
         // 生成超前 90° 的信号（虚部）
         fft(result);
         {
             auto p = result.begin();
             ++p; // 避开 0 频率点，前一半，正频率部分，超前 90°
             while (p < result.begin() + size / 2)
-                *p++ = {p->im, -p->re};
+                *p++ = {-p->im, p->re};
             ++p; // 避开 0 频率点，后一半，负频率部分，滞后 90°
             while (p < result.end())
-                *p++ = {-p->im, p->re};
+                *p++ = {p->im, -p->re};
         }
         ifft(result);
         // 与原信号合并为复信号
@@ -278,6 +278,12 @@ namespace mechdancer {
         return result;
     }
     
+    /// 带通滤波
+    /// \tparam t 信号类型
+    /// \tparam u 频率类型
+    /// \param signal 信号
+    /// \param min 频率下限
+    /// \param max 频率上限
     template<class t, class u> requires RealSignal<t> && Frequency<u>
     void bandpass(t &signal, u min, u max) {
         auto spectrum = signal.template cast<complex_t<typename t::value_t>>(0, [](auto x) -> complex_t<typename t::value_t> { return x; });// complex(signal);

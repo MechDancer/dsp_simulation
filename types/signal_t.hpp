@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <vector>
+#include <algorithm>
 
 #include "concepts.h"
 #include "complex_t.hpp"
