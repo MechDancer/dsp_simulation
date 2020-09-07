@@ -13,10 +13,13 @@
 #include "functions.h"
 
 namespace mechdancer {
+    /// 使用整型进行傅里叶变换时的放大倍数
+    /// \tparam t 整型
     template<Integer t>
-    constexpr t omega_times = std::numeric_limits<t>::max() >> (sizeof(t) * 4);
+    constexpr static t omega_times = std::numeric_limits<t>::max() >> (sizeof(t) * 4);
     
-    std::vector<double> MEMORY;
+    /// 缓存 Ω 以加速 FFT 运算
+    static std::vector<double> MEMORY;
     
     /// 用于正变换的 Ω_n^k
     /// \tparam t 复数值数据类型
@@ -54,11 +57,9 @@ namespace mechdancer {
         }
         
         if constexpr (std::is_integral_v<t>)
-            return {static_cast<t>(omega_times<t> * result.re),
-                    static_cast<t>(omega_times<t> * result.im)};
+            return {omega_times<t> * result.re + .5f, omega_times<t> * result.im + .5f};
         else
-            return {static_cast<t>(result.re),
-                    static_cast<t>(result.im)};
+            return {result.re, result.im};
     }
     
     /// 用于反变换的 Ω_n^k
@@ -85,7 +86,7 @@ namespace mechdancer {
         
         // 扩大尺寸到 2 的幂（以进行基 2 FFT）
         auto n = enlarge_to_2_power(memory.size());
-        memory.resize(n, complex_t<t>::zero);
+        memory.resize(n, memory.back());
         // 错序
         for (size_t i = 0, j = 0; i < n; ++i) {
             if (i > j) std::swap(memory[i], memory[j]);

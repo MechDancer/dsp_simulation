@@ -55,7 +55,7 @@ int main() {
     auto self_corr = correlation<correlation_mode::basic>(reference, reference);
     SAVE_SIGNAL_AUTO(script_builder, self_corr);
     { // 构造发送信号
-        auto sending = real_signal_of<unsigned short>(excitation.values.size(), excitation.sampling_frequency, excitation.begin_time);
+        auto sending = signal_of<unsigned short>(excitation.values.size(), excitation.sampling_frequency, excitation.begin_time);
         std::transform(excitation.values.begin(), excitation.values.end(), sending.values.begin(),
                        [](auto x) { return static_cast<unsigned short>(std::round(x * 2000 + 2048)); });
         sending.values.push_back(2048);
@@ -97,8 +97,8 @@ int main() {
                 auto p = R.values.begin() + size * (36e3f / 1e6f);
                 auto q = S.values.begin() + size * (36e3f / 1e6f);
                 auto e = S.values.begin() + size * (44e3f / 1e6f);
-                std::fill(S.values.begin(), q, complex_t<float>::zero);
-                std::fill(e, S.values.end(), complex_t<float>::zero);
+                std::fill(S.values.begin(), q, complex_t<float>{});
+                std::fill(e, S.values.end(), complex_t<float>{});
                 do {
                     if (p->is_zero())
                         *q = *p;

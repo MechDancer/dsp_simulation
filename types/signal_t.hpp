@@ -41,6 +41,28 @@ namespace mechdancer {
         std::vector<value_t> values;
         _frequency_t sampling_frequency;
         _time_t begin_time;
+        
+        /// 转换信号类型
+        /// \tparam __value_t 新的值类型
+        /// \tparam __frequency_t 新的频率类型
+        /// \tparam __time_t 新的时间类型
+        /// \tparam converter_t 转换器类型
+        /// \param new_size 新的离散信号长度
+        /// \param converter 转换器
+        /// \return 目标类型的信号
+        template<class __value_t = _value_t, Frequency __frequency_t = _frequency_t, Time __time_t = _time_t, class converter_t>
+        auto cast(size_t new_size, converter_t converter) const {
+            auto result = signal_t<__value_t, __frequency_t, __time_t>{
+                .values = std::vector<__value_t>(new_size > 0 ? new_size : values.size(), __value_t{}),
+                .sampling_frequency = sampling_frequency.template cast_to<__frequency_t>(),
+                .begin_time = std::chrono::duration_cast<__time_t>(begin_time),
+            };
+            if constexpr (std::is_same_v<converter_t, nullptr_t>)
+                std::copy(values.begin(), values.end(), result.values.begin());
+            else
+                std::transform(values.begin(), values.end(), result.values.begin(), converter);
+            return result;
+        }
     };
     
     /// 构造空的实信号
@@ -52,25 +74,12 @@ namespace mechdancer {
     /// \param time 起始时间
     /// \return 实信号对象
     template<class _value_t = float, Frequency frequency_t, Time time_t>
-    auto real_signal_of(size_t size, frequency_t frequency, time_t time) {
+    auto signal_of(size_t size, frequency_t frequency, time_t time) {
         return signal_t<_value_t, frequency_t, time_t>{
             .values = std::vector<_value_t>(size),
             .sampling_frequency = frequency,
             .begin_time = time,
         };
-    }
-    
-    /// 构造空的复信号
-    /// \tparam _value_t 复数数据类型
-    /// \tparam frequency_t 频率类型
-    /// \tparam time_t 时间类型
-    /// \param size 信号长度
-    /// \param frequency 采样频率
-    /// \param time 起始时间
-    /// \return 复信号对象
-    template<class _value_t = float, Frequency frequency_t, Time time_t>
-    auto complex_signal_of(size_t size, frequency_t frequency, time_t time) {
-        return real_signal_of<complex_t<_value_t>>(size, frequency, time);
     }
     
     /// 实信号作为实部生成复信号
@@ -79,9 +88,7 @@ namespace mechdancer {
     /// \return 复信号
     template<RealSignal t, Number value_t = typename t::value_t>
     auto complex(t const &signal) {
-        auto result = complex_signal_of<value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
-        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(), [](auto x) { return complex_t<value_t>::from_real(x); });
-        return result;
+        return signal.template cast<complex_t<value_t>>(0, [](auto x) -> complex_t<value_t> { return x; });
     }
     
     /// 复信号以取实部的方式转换为实信号
@@ -89,12 +96,9 @@ namespace mechdancer {
     /// \tparam t 信号类型
     /// \param signal 复信号
     /// \return 复信号实部组成的实信号
-    template<ComplexSignal t>
+    template<ComplexSignal t, class value_t = typename t::value_t::value_t>
     auto real(t const &signal) {
-        using value_t = typename t::value_t::value_t;
-        auto result = real_signal_of<value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
-        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(), [](auto z) { return z.re; });
-        return result;
+        return signal.template cast<value_t>(0, [](auto z) -> value_t { return z.re; });
     }
     
     /// 复信号以取模的方式转换为实信号
@@ -102,12 +106,9 @@ namespace mechdancer {
     /// \tparam t 信号类型
     /// \param signal 复信号
     /// \return 复信号模组成的实信号
-    template<ComplexSignal t, class _value_t = typename t::value_t::value_t>
+    template<ComplexSignal t, class value_t = typename t::value_t::value_t>
     auto abs(t const &signal) {
-        auto result = real_signal_of<_value_t>(signal.values.size(), signal.sampling_frequency, signal.begin_time);
-        std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
-                       [](auto z) { return z.norm(); });
-        return result;
+        return signal.template cast<value_t>(0, [](auto z) -> value_t { return z.norm(); });
     }
 }
 

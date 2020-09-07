@@ -12,11 +12,25 @@
 #include "../types/signal_t.hpp"
 
 namespace mechdancer {
+    /// 从啁啾信号采样
+    /// \tparam value_t 采样值类型
+    /// \param f0 起始频率
+    /// \param k 变频率
+    /// \param t 时间
+    /// \return 采样值
     template<Number value_t>
-    static value_t chirp_value(float f0, float k, floating_seconds t) {
+    static value_t sample_chirp(float f0, float k, floating_seconds t) {
         return static_cast<value_t>(std::sin(2 * PI * (f0 + k * t.count()) * t.count()));
     }
     
+    /// 构造啁啾构造函数
+    /// \tparam value_t 值类型
+    /// \tparam f_t 频率类型
+    /// \tparam t_t 时间类型
+    /// \param f0 起始频率
+    /// \param f1 终止频率
+    /// \param time 时间
+    /// \return 啁啾采样海曙
     template<Number value_t = float, Frequency f_t, Time t_t>
     auto chirp(f_t f0, f_t f1, t_t time) {
         using namespace std::placeholders;
@@ -26,7 +40,7 @@ namespace mechdancer {
                  / floating_seconds(time).count()
                  / 2;
         
-        return std::bind(chirp_value<value_t>, f0_Hz, k, _1);
+        return std::bind(sample_chirp<value_t>, f0_Hz, k, _1);
     }
     
     /// 从连续信号采样
@@ -41,26 +55,14 @@ namespace mechdancer {
     /// \return 离散信号
     template<class value_t = float, Frequency frequency_t, Time time_t, class origin_t>
     auto sample(size_t size, origin_t origin, frequency_t fs, time_t t0 = time_t::zero) {
-        using float_s_t = std::chrono::duration<float>;
-        
-        signal_t<value_t, frequency_t, time_t> result{
-            .values = std::vector<value_t>(size),
-            .sampling_frequency = fs,
-            .begin_time = t0,
-        };
-        
-        auto dt = float_s_t(1) / fs.template cast_to<Hz_t>().value;
-        auto t = float_s_t(t0);
-        
-        for (auto &x : result.values) {
-            x = origin(t);
-            t += dt;
-        }
-        
+        auto result = signal_of<value_t>(size, fs, t0);
+        auto dt = floating_seconds(1) / fs.template cast_to<Hz_t>().value;
+        auto t = floating_seconds(t0);
+        for (auto &x : result.values) x = origin(std::exchange(t, t + dt));
         return result;
     }
     
-    /// 从文件加载时域信号
+    /// 按基本分隔符从 ASCII 文件加载时域信号
     /// \tparam value_t 数据类型
     /// \tparam frequency_t 频率类型
     /// \tparam time_t 时间类型
@@ -70,12 +72,8 @@ namespace mechdancer {
     /// \return 离散信号
     template<class value_t = float, Frequency frequency_t, Time time_t>
     auto load(std::string const &file_name, frequency_t fs, time_t t0 = time_t::zero) {
-        signal_t<value_t, frequency_t, time_t> result{
-            .sampling_frequency = fs,
-            .begin_time = t0,
-        };
-        
-        std::ifstream file(file_name);
+        auto file = std::ifstream(file_name);
+        auto result = signal_of(0, fs, t0);
         value_t value;
         while (file >> value) result.values.push_back(value);
         return result;

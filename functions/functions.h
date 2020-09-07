@@ -33,11 +33,6 @@ namespace mechdancer {
     size_t enlarge_to_2_power(t value) {
         return enlarge_to_2_power(static_cast<size_t>(value + .5));
     }
-    
-    template<class t, class u, class v, class f>
-    void zip(t p, t q, u e, v r, f fun) {
-        while (p != e) *r++ = fun(*p++, *q++);
-    }
 }
 
 #endif // DSP_SIMULATION_FUNCTIONS_H

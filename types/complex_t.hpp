@@ -16,12 +16,14 @@ namespace mechdancer {
         
         t re, im;
         
-        const static complex_t zero;
+        constexpr complex_t() : re(0), im(0) {}
         
-        template<Number u>
-        static complex_t from_real(u value) {
-            return {static_cast<t>(value), 0};
-        }
+        template<class u>
+        constexpr complex_t(u re) : re(static_cast<t>(re)), im(0) {}
+        
+        template<class u, class v>
+        constexpr complex_t(u re, v im) : re(static_cast<t>(re)), im(static_cast<t>(im)) {}
+        
         
         [[nodiscard]]
         t norm() const {
@@ -41,7 +43,7 @@ namespace mechdancer {
         [[nodiscard]]
         complex_t normalize() const {
             auto l = norm();
-            return l == 0 ? zero : complex_t{re / l, im / l};
+            return l == 0 ? complex_t{} : complex_t{re / l, im / l};
         }
         
         [[nodiscard]]
@@ -143,9 +145,6 @@ namespace mechdancer {
             return *this;
         }
     };
-    
-    template<Number t>
-    const complex_t<t> complex_t<t>::zero = {0, 0};
 }
 
 #endif //FFT_COMPLEX_T_HPP

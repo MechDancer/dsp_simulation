@@ -39,11 +39,11 @@ namespace mechdancer {
             throw std::invalid_argument("the two signals should be with same sampling_frequency");
         
         size = enlarge_to_2_power(std::max(a.values.size() + b.values.size() - 1, size));
-        auto A = spectrum_t(size, complex_t<value_t>::zero),
-            B = spectrum_t(size, complex_t<value_t>::zero);
+        auto A = spectrum_t(size, complex_t<value_t>{}),
+            B = spectrum_t(size, complex_t<value_t>{});
         
-        std::transform(a.values.begin(), a.values.end(), A.begin(), [](value_t x) { return complex_t<value_t>{x, 0}; });
-        std::transform(b.values.begin(), b.values.end(), B.begin(), [](value_t x) { return complex_t<value_t>{x, 0}; });
+        std::transform(a.values.begin(), a.values.end(), A.begin(), [](auto x) { return x; });
+        std::transform(b.values.begin(), b.values.end(), B.begin(), [](auto x) { return x; });
         
         fft(A);
         fft(B);
@@ -106,17 +106,17 @@ namespace mechdancer {
             throw std::invalid_argument("the two signals should be with same sampling_frequency");
         
         auto size = enlarge_to_2_power(ref.values.size() + signal.values.size() - 1);
-        auto R = std::vector<complex_t<Tx>>(size, complex_t<Tx>::from_real(ref.values.back()));
-        auto S = std::vector<complex_t<Tx>>(size, complex_t<Tx>::from_real(signal.values.back()));
+        auto R = std::vector<complex_t<Tx>>(size, complex_t<Tx>(ref.values.back()));
+        auto S = std::vector<complex_t<Tx>>(size, complex_t<Tx>(signal.values.back()));
         
-        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](auto x) { return complex_t<Tx>::from_real(x); });
-        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](auto x) { return complex_t<Tx>::from_real(x); });
+        std::transform(ref.values.begin(), ref.values.end(), R.begin(), [](auto x) { return complex_t<Tx>(x); });
+        std::transform(signal.values.begin(), signal.values.end(), S.begin(), [](auto x) { return complex_t<Tx>(x); });
         
         fft(R);
         fft(S);
         for (auto p = S.begin(), q = R.begin(); p < S.end(); ++p, ++q)
             if (q->is_zero())
-                *p = complex_t<Tx>::zero;
+                *p = {};
             else if (!p->is_zero())
                 *p = fun(*q, *p);
         ifft(S);
@@ -280,7 +280,7 @@ namespace mechdancer {
     
     template<class t, class u> requires RealSignal<t> && Frequency<u>
     void bandpass(t &signal, u min, u max) {
-        auto spectrum = complex(signal);
+        auto spectrum = signal.template cast<complex_t<typename t::value_t>>(0, [](auto x) -> complex_t<typename t::value_t> { return x; });// complex(signal);
         auto &values = spectrum.values;
         fft(values);
         bandpass(spectrum, min, max);
