@@ -43,6 +43,11 @@ namespace mechdancer {
         return std::bind(sample_chirp<value_t>, f0_Hz, k, _1);
     }
     
+    template<Number value_t = float, Frequency f_t>
+    auto sin(f_t fs) {
+        return [fs](auto t) { return static_cast<value_t>(std::sin(2 * PI * fs.template cast_to<Hz_t>().value * floating_seconds(t).count())); };
+    }
+    
     /// 从连续信号采样
     /// \tparam size 长度
     /// \tparam value_t 数据类型
