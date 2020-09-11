@@ -26,12 +26,12 @@ namespace mechdancer {
         
         size = enlarge_to_2_power(std::max(signal.values.size(), size));
         auto result = result_t{
-            .values = std::vector<complex_t<target_t>>(size),
+            .values = std::vector<complex_t < target_t>>(size),
             .sampling_frequency = signal.sampling_frequency,
             .begin_time = signal.begin_time,
         };
         std::transform(signal.values.begin(), signal.values.end(), result.values.begin(),
-                       [](auto x) { return complex_t<target_t>{static_cast<target_t>(x), 0}; });
+                       [](auto x) { return complex_t < target_t > {static_cast<target_t>(x), 0}; });
         fft(result.values);
         return result;
     }
@@ -51,7 +51,8 @@ namespace mechdancer {
         
         if (n_min >= signal.values.size() / 2) return;
         std::fill(signal.values.begin(), signal.values.begin() + n_min, complex_t{});
-        std::fill(signal.values.end() - n_min + 1, signal.values.end(), complex_t{});
+        if (n_min > 0)
+            std::fill(signal.values.end() - n_min + 1, signal.values.end(), complex_t{});
         if (n_max < signal.values.size() / 2)
             std::fill(signal.values.begin() + n_max, signal.values.end() - n_max + 1, complex_t{});
     }

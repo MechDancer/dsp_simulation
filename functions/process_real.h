@@ -170,9 +170,9 @@ namespace mechdancer {
             fft(spectrum);
             auto size = spectrum.size();
             auto extra = spectrum[size / 2];
-            spectrum.resize(size * times, complex_t<value_t>::zero);
+            spectrum.resize(size * times, complex_t<value_t>{});
             std::copy_n(spectrum.begin() + size / 2 + 1, size / 2 - 1, spectrum.end() - size / 2 + 1);
-            std::fill(spectrum.begin() + size / 2, spectrum.end() - size / 2 + 1, complex_t<value_t>::zero);
+            std::fill(spectrum.begin() + size / 2, spectrum.end() - size / 2 + 1, complex_t<value_t>{});
             spectrum[spectrum.size() / 2] = extra;
             ifft(spectrum);
             // 再降采样到目标采样率
@@ -330,6 +330,8 @@ namespace mechdancer {
     OPERATOR(+)
     
     OPERATOR(-)
+    
+    OPERATOR(*)
     
     #undef OPERATOR
 }

@@ -52,16 +52,16 @@ namespace mechdancer {
         /// \param converter 转换器
         /// \return 目标类型的信号
         template<class __value_t = _value_t, Frequency __frequency_t = _frequency_t, Time __time_t = _time_t, class converter_t>
-        auto cast(size_t new_size, converter_t converter) const {
+        auto cast(long new_size, converter_t converter) const {
             auto result = signal_t<__value_t, __frequency_t, __time_t>{
-                .values = std::vector<__value_t>(new_size > 0 ? new_size : values.size(), __value_t{}),
+                .values = std::vector<__value_t>(new_size > 0 ? new_size : values.size() + new_size, __value_t{}),
                 .sampling_frequency = sampling_frequency.template cast_to<__frequency_t>(),
                 .begin_time = std::chrono::duration_cast<__time_t>(begin_time),
             };
             if constexpr (std::is_same_v<converter_t, nullptr_t>)
-                std::copy(values.begin(), values.end(), result.values.begin());
+                std::copy_n(values.begin(), std::min(values.size(), result.values.size()), result.values.begin());
             else
-                std::transform(values.begin(), values.end(), result.values.begin(), converter);
+                std::transform(values.begin(), values.begin() + std::min(values.size(), result.values.size()), result.values.begin(), converter);
             return result;
         }
     };

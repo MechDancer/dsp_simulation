@@ -39,6 +39,8 @@ namespace mechdancer {
             return std::chrono::duration_cast<t>(floating_seconds(n / k / value));
         }
         
+        frequency_t operator-() const { return {-value}; }
+        
         template<class t>
         frequency_t operator*(t n) const { return {value * n}; }
         

@@ -24,6 +24,10 @@ namespace mechdancer {
         template<class u, class v>
         constexpr complex_t(u re, v im) : re(static_cast<t>(re)), im(static_cast<t>(im)) {}
         
+        template<Number u>
+        constexpr static complex_t exp(u theta) {
+            return {std::cos(theta), std::sin(theta)};
+        }
         
         [[nodiscard]]
         t norm() const {

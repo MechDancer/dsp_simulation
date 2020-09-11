@@ -11,6 +11,22 @@ namespace mechdancer {
     constexpr static auto PI = 3.1415926535897932384626433832795;
     using floating_seconds = std::chrono::duration<float>;
     
+    constexpr floating_seconds operator ""_sf(unsigned long long value) {
+        return floating_seconds(value);
+    }
+    
+    constexpr floating_seconds operator ""_sf(long double value) {
+        return floating_seconds(value);
+    }
+    
+    constexpr floating_seconds operator ""_msf(unsigned long long value) {
+        return floating_seconds(value * 1e-3);
+    }
+    
+    constexpr floating_seconds operator ""_msf(long double value) {
+        return floating_seconds(value * 1e-3);
+    }
+    
     template<class t>
     concept Integer = std::is_integral_v<t>;
     

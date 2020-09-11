@@ -215,34 +215,38 @@ namespace mechdancer {
             auto c1 = PI / 4 / n * -std::tan(alpha / 2);
             auto c2 = PI / 4 / n / std::sin(alpha);
             auto chirp = std::vector<complex_t<float>>(8 * n, complex_t<t>{});
+            // 第一次乘基啁啾，同时构造另一个啁啾
             auto k = .5 - 2 * n;
             for (unsigned i = 0; i < 4 * n; ++i, ++k) {
-                auto c = c1 * k * k;
-                signal[i] *= complex_t<t>(std::cos(c), std::sin(c));
-                c = c2 * k * k;
-                chirp[i] = complex_t<t>(std::cos(c), std::sin(c));
+                signal[i] *= complex_t<t>::exp(c1 * k * k);
+                chirp[i] = complex_t<t>::exp(c2 * k * k);
             }
+            // 卷一个啁啾
             fft(signal);
             fft(chirp);
             for (unsigned i = 0; i < 8 * n; ++i)
                 signal[i] *= chirp[i];
             ifft(signal);
-            {
-                auto beta = alpha / 2 - PI / 4;
-                auto c = complex_t<t>(std::cos(beta), std::sin(beta)) / (2 * std::sqrtf(n * std::sinf(alpha)));
+            { // 抽取，同时乘第三个啁啾和校正项
+                // 计算固定的校正项
+                const auto z = complex_t<t>::exp(alpha / 2 - PI / 4) / (2 * std::sqrtf(n * std::sinf(alpha)));
+                // 初始化用到的循环变量
                 auto p = signal.begin();
                 auto q = signal.begin() + 3 * n;
                 auto e = signal.begin() + n;
-                for (; p != e; ++p, q += 2)
-                    *p = *q * c;
+                k = .5 - n;
+                // 这里重新算一次啁啾，因为第一次算的随着 FFT 毁灭了
+                for (; p != e; ++p, q += 2, k += 2)
+                    *p = *q * complex_t<t>::exp(c1 * k * k) * z;
                 signal.resize(n);
             }
-            k = .5 - n;
-            for (unsigned i = 0; i < n; ++i, k += 2) {
-                auto c = c2 * k * k;
-                signal[i] *= complex_t<t>(std::cos(c), std::sin(c));
-            }
         }
+    }
+    
+    template<class t0, class t1, class f0, class f1> requires Time<t0> && Time<t1> && Frequency<f0> && Frequency<f1>
+    auto best_order(t0 t, f0 fs, t1 tl, f1 df) {
+        auto x = std::sqrt(floating_seconds(t).count() / fs.template cast_to<Hz_t>().value);
+        return std::atan2(floating_seconds(tl).count() / x, -df.template cast_to<Hz_t>().value * x) / (PI / 2);
     }
 }
 

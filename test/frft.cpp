@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 
 #include "../functions/builders.h"
 #include "../functions/process_real.h"
@@ -6,23 +7,30 @@
 
 using namespace mechdancer;
 
-template<class t0, class t1, class f0, class f1> requires Time<t0> && Time<t1> && Frequency<f0> && Frequency<f1>
-auto best_order(t0 t, f0 fs, t1 tl, f1 df) {
-    auto x = std::sqrt(floating_seconds(t).count() / fs.template cast_to<Hz_t>().value);
-    return std::atan2(floating_seconds(tl).count() / x, -df.template cast_to<Hz_t>().value * x) / (PI / 2);
-}
-
 int main() {
     using namespace std::chrono_literals;
-    auto order = best_order(1.024ms, 1_MHz, 1.024ms, 10_kHz);
-    std::cout << order << std::endl;
+    constexpr static auto MAIN_FS = 500_kHz; // 采样率
+    auto order = best_order(16.384ms, MAIN_FS, 1ms, -1_kHz);
+    std::cout << "the best order = " << order << std::endl;
+    std::cout << "transformation ratio = " << std::abs(std::sin(PI / 2 * (order - 1))) << std::endl;
     
     script_builder_t script_builder("data");
-    constexpr static auto MAIN_FS = 1_MHz; // 采样率
-    auto reference = sample(1024, chirp(5_kHz, 15_kHz, 1.024ms), 1_MHz, floating_seconds(0));
-    auto spectrum = hilbert(reference);
-    frft(spectrum.values, order);
-    SAVE_SIGNAL_AUTO(script_builder, reference);
-    SAVE_SIGNAL(script_builder.save("spectrum"), abs(spectrum));
+    auto transceiver = resample(load("../31+40_2048_1M.txt", 1_MHz, floating_seconds(0)), MAIN_FS, 2);
+    auto excitation0 = sample(2000, chirp(42_kHz, 38_kHz, 4ms), MAIN_FS, floating_seconds(0));
+    auto excitation1 = sample(2000, chirp(42_kHz, 38_kHz, 4ms), MAIN_FS, floating_seconds(10e-3));
+    
+    excitation1 = signal_of(1, MAIN_FS, floating_seconds(0)) + excitation1;
+    auto excitation = excitation0 + excitation1;
+    SAVE_SIGNAL_AUTO(script_builder, excitation);
+    SAVE_SIGNAL_AUTO(script_builder, transceiver);
+    {
+        auto r0 = excitation0; // convolution(excitation0, transceiver);
+        auto r1 = excitation1; // convolution(excitation1, transceiver);
+        r0.values.resize(8192, 0);
+        r1.values.resize(8192, 0);
+        SAVE_SIGNAL_AUTO(script_builder, r0);
+        SAVE_SIGNAL_AUTO(script_builder, r1);
+    }
+    
     return 0;
 }
