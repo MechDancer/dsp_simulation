@@ -56,7 +56,7 @@ int main() {
     auto received = convolution(excitation, convolution(transceiver, multi_path));
     auto recovered = demodulate(received);
     
-    auto size = 16384;
+    auto size = 65536;
     base.values.resize(size, 0);
     recovered.values.resize(size, 0);
     reference.values.resize(size, 0);
@@ -68,7 +68,7 @@ int main() {
     SAVE_SIGNAL_AUTO(script_builder, recovered);
     
     auto extracting = 64;
-    auto order = best_order(16384us, Hz_t{1e6f / extracting}, 4096us, -14_kHz);
+    auto order = best_order(65536us, Hz_t{1e6f / extracting}, 4096us, -14_kHz);
     std::cout << "the best order = " << order << std::endl;
     std::cout << "transformation ratio = " << std::abs(std::sin(PI / 2 * (order - 1))) << std::endl;
     

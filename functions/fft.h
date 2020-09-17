@@ -8,6 +8,7 @@
 #include <cmath>
 #include <vector>
 #include <limits>
+#include <stdexcept>
 
 #include "../types/concepts.h"
 #include "functions.h"
@@ -141,8 +142,13 @@ namespace mechdancer {
         return diff <= std::abs(x + y) * epsilon || diff < std::numeric_limits<t>::min();
     }
     
+    /// 阶数为整数的分数阶变换
+    /// \tparam order 阶数
+    /// \tparam t 数值类型
+    /// \param signal 数据
+    /// \param sqrt_n 长度的平方根
     template<unsigned order, Number t = float>
-    void frft_spectial(std::vector<complex_t<t>> &signal, double sqrt_n) {
+    static void frft_special(std::vector<complex_t<t>> &signal, double sqrt_n) {
         static_assert(order == 1 || order == 2 || order == 3, "only for order 1, 2 or 3");
         if constexpr (order == 2) {
             std::reverse(signal.begin(), signal.end());
@@ -159,8 +165,13 @@ namespace mechdancer {
         }
     }
     
-    template<Number t = float, Number order_t>
-    void frft(std::vector<complex_t<t>> &signal, order_t order) {
+    /// 分数阶傅里叶变换
+    /// \tparam t 数值类型
+    /// \tparam order_t 阶数类型
+    /// \param signal 数据
+    /// \param order 阶数
+    template<Floating t = float>
+    void frft(std::vector<complex_t<t>> &signal, t order) {
         auto n = enlarge_to_2_power(signal.size());
         signal.resize(n, signal.back());
         auto sqrt_n = std::sqrt(n);
@@ -172,29 +183,28 @@ namespace mechdancer {
         if (almost_equal<double>(order, 0))
             return;
         if (almost_equal<double>(order, 1)) {
-            frft_spectial<1>(signal, sqrt_n);
+            frft_special<1>(signal, sqrt_n);
             return;
         }
         if (almost_equal<double>(order, 2)) {
-            frft_spectial<2>(signal, sqrt_n);
+            frft_special<2>(signal, sqrt_n);
             return;
         }
         if (almost_equal<double>(order, 3)) {
-            frft_spectial<3>(signal, sqrt_n);
+            frft_special<3>(signal, sqrt_n);
             return;
         }
         // 归入 [.5, 1.5)
         if (order > 2) {
             order -= 2;
-            frft_spectial<2>(signal, sqrt_n);
+            frft_special<2>(signal, sqrt_n);
         }
         if (order >= 1.5) {
             order -= 1;
-            frft_spectial<1>(signal, sqrt_n);
+            frft_special<1>(signal, sqrt_n);
         } else if (order < .5) {
             order += 1;
-            frft_spectial<3>(signal, sqrt_n);
-            fft_shift(signal);
+            frft_special<3>(signal, sqrt_n);
         }
         { // 时频域同时插值
             signal.resize(2 * n);
@@ -205,9 +215,9 @@ namespace mechdancer {
             }
             fft(signal);
             std::fill(signal.begin() + n / 2, signal.end() - n / 2 + 1, complex_t<t>{});
-            fft<fft_operation::ifft>(signal); // 此处免除一次 ifft 的幅度变换，合并到下面
+            ifft(signal);
             signal.resize(8 * n, complex_t<t>{}); // 直接扩张到 8n，用于后续做卷积，插值后的信号只使用前面的 4n
-            std::transform(signal.begin(), signal.begin() + 2 * n, signal.begin() + n, [n](auto z) { return z / n; });
+            std::copy(signal.begin(), signal.begin() + 2 * n, signal.begin() + n);
             std::fill(signal.begin(), signal.begin() + n, complex_t<t>{});
         }
         { // 乘 + 卷 + 乘

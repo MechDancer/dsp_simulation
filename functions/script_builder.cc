@@ -29,9 +29,10 @@ mechdancer::script_builder_t::~script_builder_t() {
     
     builder << "cd " << data_file_path << std::endl;
     for (auto const &file : files)
-        builder << "load('" << data_file_path << file << ".txt');" << std::endl;
+        builder << file << " = " << "load(\"" << data_file_path << file << ".txt\");" << std::endl;
     
     auto text = builder.str();
+    std::replace(text.begin(), text.end(), '\\', '/');
     std::cout << std::endl << text;
     script << text;
 }
